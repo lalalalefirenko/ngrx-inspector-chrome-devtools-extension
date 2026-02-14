@@ -1,0 +1,47 @@
+<div class="node">
+  <div class="node-header" (click)="toggle()">
+    <span class="collapse-indicator">
+      @if (node().children?.length && !node().isRoot) {
+        {{ collapsed() ? "+" : "-" }}
+      }
+    </span>
+
+    <span class="key">{{ node().key }}</span>
+
+    @if (collapsed()) {
+      <span class="preview">
+        {{ previewNodeValue() }}
+      </span>
+    }
+
+    @if (!collapsed() || !node().children?.length) {
+      @if (
+        node().kind === "changed" &&
+        node().before !== undefined &&
+        node().after !== undefined
+      ) {
+        <span class="before">{{ formattedNodeBeforeValue() }}</span>
+        <span class="arrow"> => </span>
+        <span class="after">{{ formattedNodeAfterValue() }}</span>
+      }
+
+      @if (node().kind === "added" && node().after !== undefined) {
+        <span class="after"> {{ formattedNodeAfterValue() }}</span>
+      }
+
+      @if (node().kind === "removed" && node().before !== undefined) {
+        <span class="before only-removed">
+          {{ formattedNodeBeforeValue() }}</span
+        >
+      }
+    }
+  </div>
+
+  @if (node().children?.length && !collapsed()) {
+    <div class="children">
+      @for (child of node().children; track child.key) {
+        <diff-tree [node]="child"></diff-tree>
+      }
+    </div>
+  }
+</div>

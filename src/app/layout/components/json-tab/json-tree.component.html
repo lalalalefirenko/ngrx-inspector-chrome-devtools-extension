@@ -1,0 +1,41 @@
+<div class="node">
+  <div class="node-header" (click)="toggle()">
+    <span class="collapse-indicator">
+      @if (node().children?.length && !node().isRoot) {
+        {{ collapsed() ? "+" : "-" }}
+      }
+    </span>
+
+    <span class="key">{{ node().key }}</span>
+
+    @if (isPinningEnabled()) {
+      @if (node().isPinnable) {
+        <button class="pin-button" (click)="pinNodeHandler($event)">pin</button>
+      } @else if (node().isPinned) {
+        <button class="unpin-button" (click)="unpinNodeHandler($event)">
+          unpin
+        </button>
+      }
+    }
+
+    @if (!node().children) {
+      <span class="value">{{ formattedNodeValue() }}</span>
+    } @else if (collapsed()) {
+      <span class="preview">
+        {{ previewNodeValue() }}
+      </span>
+    }
+  </div>
+
+  @if (node().children && !collapsed()) {
+    <div class="children">
+      @for (child of node().children; track child.key) {
+        <json-tree
+          [node]="child"
+          [isPinningEnabled]="isPinningEnabled()"
+          (pinNode)="pinNode.emit($event)"
+        ></json-tree>
+      }
+    </div>
+  }
+</div>

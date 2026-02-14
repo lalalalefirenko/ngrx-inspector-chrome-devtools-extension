@@ -1,0 +1,6 @@
+@use "variables" as vars;
+
+.tree {
+  display: block;
+  margin-top: vars.$space-4;
+}

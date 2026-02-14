@@ -1,0 +1,43 @@
+<div class="settings-page">
+  <div class="settings-header">
+    <h3>SETTINGS</h3>
+  </div>
+
+  <div class="hide-actions-block-setting">
+    <p>HIDE ACTIONS WITH PREFIX</p>
+    <div class="add-filter">
+      <input
+        [(ngModel)]="newPattern"
+        placeholder="Prefix (@ngrx, [Router], ...)"
+        class="filter-input"
+      />
+      <button class="add-btn" (click)="add()">Add</button>
+    </div>
+
+    <ul class="filters">
+      @for (filter of settingsStore.filters(); track filter.id) {
+        <li class="filter-item">
+          <label class="filter-label">
+            <input
+              type="checkbox"
+              [checked]="filter.enabled"
+              (change)="settingsStore.toggle(filter.id)"
+            />
+            <span class="filter-text">{{ filter.pattern }}</span>
+          </label>
+
+          @if (filter.readonly) {
+            <span class="default-badge">default</span>
+          } @else {
+            <button
+              class="remove-btn"
+              (click)="settingsStore.remove(filter.id)"
+            >
+              ❌
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  </div>
+</div>

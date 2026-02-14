@@ -1,0 +1,12 @@
+@use "variables" as vars;
+
+.feature {
+  margin-bottom: vars.$space-4;
+}
+
+.equal-states-msg {
+  color: vars.$text-muted;
+  font-style: italic;
+  text-align: center;
+  padding: vars.$space-8 0;
+}

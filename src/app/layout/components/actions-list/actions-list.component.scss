@@ -1,0 +1,43 @@
+@use "variables" as vars;
+@use "mixins" as mixins;
+
+.list {
+  font-family: vars.$font-mono;
+}
+
+.actions-viewport {
+  height: calc(100vh - 2.5rem);
+  width: 100%;
+}
+
+.row {
+  position: relative;
+  padding: vars.$space-4;
+  @include mixins.clickable;
+  @include mixins.border-bottom(vars.$border-light);
+
+  @include mixins.hover-bg(vars.$bg-hover);
+
+  &.active {
+    background: vars.$bg-active;
+
+    &:hover {
+      background: vars.$bg-active;
+    }
+  }
+
+  &.new::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: vars.$bg-success;
+    z-index: -1;
+    animation: fadeToWhite 0.3s ease forwards 2s;
+  }
+}
+
+@keyframes fadeToWhite {
+  to {
+    background-color: #fff;
+  }
+}

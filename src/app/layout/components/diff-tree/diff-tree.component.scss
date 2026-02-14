@@ -1,0 +1,58 @@
+@use "variables" as vars;
+@use "mixins" as mixins;
+
+.node {
+  font-family: monospace;
+  line-height: 1.4;
+}
+
+.node-header {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.key {
+  color: vars.$primary;
+}
+
+.children {
+  margin-left: vars.$space-8;
+  padding-left: vars.$space-4;
+  border-left: thin solid rgba(0, 0, 0, 0.1);
+}
+
+.before {
+  color: vars.$danger;
+  background-color: vars.$bg-danger;
+}
+
+.only-removed {
+  text-decoration: line-through;
+}
+
+.after {
+  color: vars.$success;
+  background-color: vars.$bg-success;
+}
+
+.arrow {
+  opacity: 0.6;
+}
+
+.collapse-indicator {
+  cursor: pointer;
+  user-select: none;
+  width: vars.$space-8;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.collapse-indicator:hover {
+  opacity: 1;
+}
+
+.preview {
+  opacity: 0.6;
+  white-space: pre;
+}

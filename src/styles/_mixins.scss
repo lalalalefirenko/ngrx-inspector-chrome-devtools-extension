@@ -1,0 +1,19 @@
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+}
+
+@mixin clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+@mixin hover-bg($color) {
+  &:hover {
+    background-color: $color;
+  }
+}
+
+@mixin border-bottom($color) {
+  border-bottom: 0.0625rem solid $color;
+}

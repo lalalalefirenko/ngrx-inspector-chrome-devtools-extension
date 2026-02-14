@@ -1,28 +1,19 @@
 {
-  "name": "ngrx-action-visualizer",
-  "version": "0.0.0",
+  "name": "ngrx-inspector-chrome-devtools-extension",
+  "version": "0.0.1",
+  "license": "MIT",
+  "author": "Lev Alefirenko",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "build:prod": "ng build -c production",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
-  "prettier": {
-    "printWidth": 100,
-    "singleQuote": true,
-    "overrides": [
-      {
-        "files": "*.html",
-        "options": {
-          "parser": "angular"
-        }
-      }
-    ]
-  },
   "private": true,
-  "packageManager": "npm@11.6.0",
   "dependencies": {
+    "@angular/cdk": "^21.1.4",
     "@angular/common": "^21.0.0",
     "@angular/compiler": "^21.0.0",
     "@angular/core": "^21.0.0",
@@ -36,8 +27,16 @@
     "@angular/build": "^21.0.2",
     "@angular/cli": "^21.0.2",
     "@angular/compiler-cli": "^21.0.0",
+    "@stylistic/eslint-plugin": "^5.8.0",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
+    "angular-eslint": "^21.2.0",
+    "eslint": "^9.39.3",
     "jsdom": "^27.1.0",
-    "typescript": "~5.9.2",
+    "prettier": "^3.8.1",
+    "prettier-eslint": "^16.4.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0",
     "vitest": "^4.0.8"
   }
 }

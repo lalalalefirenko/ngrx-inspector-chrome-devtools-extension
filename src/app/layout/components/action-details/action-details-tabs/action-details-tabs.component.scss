@@ -1,0 +1,27 @@
+@use "variables" as vars;
+@use "mixins" as mixins;
+
+.tabs {
+  display: flex;
+  @include mixins.border-bottom(vars.$border-medium);
+  margin-bottom: vars.$space-4;
+
+  button {
+    padding: vars.$space-4 vars.$space-8;
+    border: none;
+    border-bottom: thin solid transparent;
+    background: none;
+    font-family: vars.$font-mono;
+    color: vars.$text-soft;
+    @include mixins.clickable;
+
+    @include mixins.hover-bg(rgba(0, 0, 0, 0.03));
+
+    &.active {
+      border-color: vars.$primary;
+      color: vars.$primary;
+      font-weight: 600;
+      background: vars.$bg-active;
+    }
+  }
+}

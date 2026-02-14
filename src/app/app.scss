@@ -1,0 +1,79 @@
+@use "variables" as vars;
+@use "mixins" as mixins;
+
+.layout {
+  display: flex;
+  height: 100vh;
+  font-size: 0.8rem;
+}
+
+aside {
+  width: 25rem;
+  min-width: 15.625rem;
+  max-width: 50rem;
+  resize: horizontal;
+  overflow: auto;
+  border-right: 0.0625rem solid vars.$border-strong;
+
+  .filter {
+    padding: 0.5rem;
+    width: 100%;
+    box-sizing: border-box;
+    border: 0;
+    @include mixins.border-bottom(vars.$border-strong);
+
+    &:focus {
+      outline: none;
+    }
+  }
+}
+
+main {
+  flex: 1;
+  overflow: auto;
+
+  .floating-btn {
+    @include mixins.flex-center;
+    @include mixins.clickable;
+
+    justify-content: center;
+
+    position: fixed;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    border: none;
+    color: #fff;
+    font-size: 1.5rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+
+    &:hover {
+      transform: translateY(-0.125rem);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  .clear-btn {
+    left: vars.$space-10;
+    bottom: vars.$space-10;
+    background: vars.$danger;
+
+    &:hover {
+      background: vars.$danger-hover;
+    }
+  }
+
+  .settings-btn {
+    right: vars.$space-10;
+    bottom: vars.$space-10;
+    background: vars.$primary;
+
+    &:hover {
+      background: vars.$primary-hover;
+    }
+  }
+}

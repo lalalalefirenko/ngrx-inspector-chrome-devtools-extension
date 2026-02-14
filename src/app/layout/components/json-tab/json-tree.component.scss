@@ -1,0 +1,67 @@
+@use "variables" as vars;
+@use "mixins" as mixins;
+
+.node {
+  font-family: vars.$font-mono;
+  line-height: 1.5;
+}
+
+.node-header {
+  @include mixins.flex-center;
+  gap: vars.$space-3;
+}
+
+.collapse-indicator {
+  width: vars.$space-8;
+  text-align: center;
+  user-select: none;
+  opacity: 0.7;
+  @include mixins.clickable;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.children {
+  margin-left: vars.$space-8;
+  padding-left: vars.$space-4;
+  border-left: thin solid rgba(0, 0, 0, 0.1);
+}
+
+.key {
+  color: vars.$primary;
+}
+
+.preview {
+  opacity: 0.6;
+  white-space: pre;
+}
+
+.pin-button,
+.unpin-button {
+  margin: vars.$space-1;
+  padding: vars.$space-2;
+  font-family: monospace;
+  border: none;
+  cursor: pointer;
+  font-size: vars.$space-4;
+}
+
+.pin-button {
+  background: vars.$border-light;
+  color: vars.$text-soft;
+
+  &:hover {
+    background: vars.$border-strong;
+  }
+}
+
+.unpin-button {
+  color: vars.$danger;
+  background: vars.$bg-danger;
+
+  &:hover {
+    background: vars.$bg-danger-hover;
+  }
+}

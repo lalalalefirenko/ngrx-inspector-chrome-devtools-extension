@@ -1,0 +1,7 @@
+@for (feature of features(); track feature.key) {
+  <div class="feature">
+    <diff-tree [node]="feature"></diff-tree>
+  </div>
+} @empty {
+  <p class="equal-states-msg">states are equal</p>
+}

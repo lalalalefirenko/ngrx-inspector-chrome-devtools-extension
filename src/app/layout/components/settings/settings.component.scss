@@ -1,0 +1,102 @@
+@use "variables" as vars;
+@use "mixins" as mixins;
+
+.settings-page {
+  padding: vars.$space-8;
+  font-family: "Segoe UI", Roboto, monospace;
+}
+
+.settings-header {
+  margin-bottom: vars.$space-8;
+
+  h3 {
+    margin: 0;
+    font-size: vars.$space-8;
+    font-weight: 600;
+  }
+}
+
+.add-filter {
+  display: flex;
+  gap: vars.$space-4;
+  margin-bottom: vars.$space-8;
+
+  .filter-input {
+    flex-basis: 80%;
+    padding: vars.$space-3 vars.$space-5;
+    border: thin solid vars.$border-strong;
+    outline: none;
+    transition: border-color 0.2s;
+
+    &:focus {
+      border-color: vars.$primary-hover;
+    }
+  }
+
+  .add-btn {
+    padding: vars.$space-3 vars.$space-6;
+    flex-basis: 20%;
+    border: none;
+    background-color: vars.$primary;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: vars.$primary-hover;
+    }
+  }
+}
+
+.filters {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  .filter-item {
+    @include mixins.flex-center;
+    justify-content: space-between;
+    padding: vars.$space-1 0;
+    transition: background 0.2s;
+
+    &:hover {
+      background-color: rgba(25, 118, 210, 0.03);
+    }
+
+    .filter-label {
+      @include mixins.flex-center;
+      gap: vars.$space-3;
+      cursor: pointer;
+
+      input[type="checkbox"] {
+        width: vars.$space-8;
+        height: vars.$space-8;
+      }
+    }
+
+    .default-badge {
+      background: vars.$border-light;
+      color: vars.$text-soft;
+      padding: vars.$space-1 vars.$space-3;
+      border-radius: vars.$space-2;
+      margin-left: vars.$space-4;
+    }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: vars.$danger;
+      transition: opacity 0.2s;
+
+      &:hover {
+        opacity: 0.7;
+      }
+    }
+  }
+}
+
+.hide-actions-block-setting {
+  padding: vars.$space-4;
+  border: thin solid vars.$border-strong;
+}

@@ -1,0 +1,12 @@
+@for (
+  pathItem of actionPath();
+  track pathItem;
+  let idx = $index, isLast = $last, isFirst=$first
+) {
+  @if (!isFirst) {
+    <span> > </span>
+  }
+  <span [class.clickable]="!isLast" (click)="proceedToPath(idx, isLast)">
+    {{ pathItem }}
+  </span>
+}

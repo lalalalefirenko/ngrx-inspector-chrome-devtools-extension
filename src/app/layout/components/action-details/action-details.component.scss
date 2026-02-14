@@ -1,0 +1,24 @@
+@use "variables" as vars;
+
+.tab-content {
+  background-color: #fdfdfd;
+  font-family: monospace;
+
+  .feature {
+    margin-bottom: vars.$space-4;
+  }
+
+  .equal-states-msg {
+    color: vars.$text-muted;
+    font-style: italic;
+    text-align: center;
+    padding: vars.$space-8 0;
+  }
+}
+
+.settings-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+}

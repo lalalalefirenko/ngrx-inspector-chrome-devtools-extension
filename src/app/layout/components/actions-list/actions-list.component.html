@@ -1,0 +1,13 @@
+<div class="list">
+  <cdk-virtual-scroll-viewport itemSize="30" class="actions-viewport">
+    <div
+      *cdkVirtualFor="let action of store.visibleActions(); trackBy: trackById"
+      class="row"
+      [class.active]="store.selectedAction()?.id === action.id"
+      [class.new]="store.newIds.has(action.id)"
+      (click)="actionClickHandler(action)"
+    >
+      {{ action.type }}
+    </div>
+  </cdk-virtual-scroll-viewport>
+</div>

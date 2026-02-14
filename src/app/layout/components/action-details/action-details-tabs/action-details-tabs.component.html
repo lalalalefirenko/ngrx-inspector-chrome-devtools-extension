@@ -1,0 +1,22 @@
+<div class="tabs">
+  <button
+    [class.active]="activeTab() === 'payload'"
+    (click)="tryChangeTab('payload')"
+  >
+    Payload
+  </button>
+
+  <button
+    [class.active]="activeTab() === 'state'"
+    (click)="tryChangeTab('state')"
+  >
+    State
+  </button>
+
+  <button
+    [class.active]="activeTab() === 'diff'"
+    (click)="tryChangeTab('diff')"
+  >
+    Diff
+  </button>
+</div>

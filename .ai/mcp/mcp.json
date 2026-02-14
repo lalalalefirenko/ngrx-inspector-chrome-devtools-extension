@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "angular-cli": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "export PATH=/home/dev/.nvm/versions/node/v24.9.0/bin:$PATH; npx -y @angular/cli mcp"
+      ]
+    }
+  }
+}

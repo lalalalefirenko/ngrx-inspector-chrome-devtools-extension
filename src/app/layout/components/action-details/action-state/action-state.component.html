@@ -1,0 +1,14 @@
+@if (pinnedPath()) {
+  <action-path
+    [actionPath]="pinnedPath()"
+    (setNewPath)="setNewPath.emit($event)"
+  ></action-path>
+}
+
+<json-tree
+  class="tree"
+  [isPinningEnabled]="true"
+  [node]="jsonTreeFromAction()"
+  (pinNode)="pinNode.emit($event)"
+  (unpinNode)="unpinNode.emit()"
+></json-tree>
