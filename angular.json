@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "ngrx-action-visualizer": {
+    "ngrx-inspector": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -67,10 +67,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "ngrx-action-visualizer:build:production"
+              "buildTarget": "ngrx-inspector:build:production"
             },
             "development": {
-              "buildTarget": "ngrx-action-visualizer:build:development"
+              "buildTarget": "ngrx-inspector:build:development"
             }
           },
           "defaultConfiguration": "development"
