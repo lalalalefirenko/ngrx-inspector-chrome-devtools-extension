@@ -1,5 +1,5 @@
 chrome.devtools.panels.create(
-  "S.T.A.S. tools",
+  "NgRx Inspector",
   "icon_active_16.png",
   "index.html",
 );
