@@ -64,7 +64,7 @@ export class ActionsBridgeService implements OnDestroy {
   /**
    * Name of the Chrome runtime port.
    */
-  private readonly _portName = 'ngrx-actions-visualizer';
+  private readonly _portName = 'ngrx-inspector';
 
   //region Constructor
   constructor() {

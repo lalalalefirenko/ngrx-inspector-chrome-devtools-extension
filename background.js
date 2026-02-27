@@ -4,7 +4,7 @@ const portsByTabId = new Map();
 // PORT CONNECTIONS
 // ===============================
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== "ngrx-actions-visualizer") return;
+  if (port.name !== "ngrx-inspector") return;
 
   let tabId = null;
 
