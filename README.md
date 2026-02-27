@@ -68,7 +68,7 @@ chrome://extensions
 
 6️⃣ Click Load unpacked
 
-7️⃣ Select the dist/ folder
+7️⃣ Select the dist/ngrx-inspector/browser
 
 # 🧩 How It Works
 
