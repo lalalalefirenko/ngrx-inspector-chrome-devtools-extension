@@ -1,4 +1,4 @@
-@if (canDisplayDetails() && store.selectedAction(); as action) {
+@if (canDisplayDetails() && selectedAction(); as action) {
   <action-details-tabs
     [activeTab]="currentTab()"
     (tabChange)="currentTab.set($event)"
@@ -12,10 +12,10 @@
       @case ("state") {
         <action-state
           [action]="action"
-          [pinnedPath]="store.pinnedPath()"
-          (pinNode)="store.pinNode($event)"
-          (unpinNode)="store.unpinNode()"
-          (setNewPath)="$event ? store.pinNode($event) : store.unpinNode()"
+          [pinnedPath]="pinnedPath()"
+          (pinNode)="pinNode($event)"
+          (unpinNode)="unpinNode()"
+          (setNewPath)="$event ? pinNode($event) : unpinNode()"
         />
       }
       @case ("diff") {

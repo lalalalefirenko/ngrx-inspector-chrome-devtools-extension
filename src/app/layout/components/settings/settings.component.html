@@ -15,13 +15,13 @@
     </div>
 
     <ul class="filters">
-      @for (filter of settingsStore.filters(); track filter.id) {
+      @for (filter of filters(); track filter.id) {
         <li class="filter-item">
           <label class="filter-label">
             <input
               type="checkbox"
               [checked]="filter.enabled"
-              (change)="settingsStore.toggle(filter.id)"
+              (change)="toggle(filter.id)"
             />
             <span class="filter-text">{{ filter.pattern }}</span>
           </label>
@@ -31,7 +31,7 @@
           } @else {
             <button
               class="remove-btn"
-              (click)="settingsStore.remove(filter.id)"
+              (click)="remove(filter.id)"
             >
               ❌
             </button>

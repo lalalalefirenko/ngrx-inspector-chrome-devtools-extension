@@ -35,8 +35,7 @@ export const getValueByPath = (
   }
 
   return path?.reduce(
-    // @ts-ignore
-    (obj: unknown, key: string) => obj?.[key],
+    (obj: unknown, key: string) => (obj as Record<string, unknown>)?.[key],
     object,
   );
 };

@@ -6,11 +6,8 @@
  */
 export function isDevToolsEnv(): boolean {
   return (
-    // @ts-expect-error
     typeof chrome !== 'undefined' &&
-    // @ts-expect-error
     Boolean(chrome.runtime) &&
-    // @ts-expect-error
     Boolean(chrome.devtools)
   );
 }

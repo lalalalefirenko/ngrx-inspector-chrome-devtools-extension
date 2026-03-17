@@ -9,8 +9,8 @@
   </aside>
   <main>
     <action-details [canDisplayDetails]="!isSettingsOpened()" />
-    @if(isSettingsOpened()){
-    <app-settings (close)="closeSettings()" />
+    @if (isSettingsOpened()) {
+      <app-settings (close)="closeSettings()" />
     }
 
     <button class="floating-btn settings-btn" (click)="toggleSettings()">

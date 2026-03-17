@@ -20,6 +20,19 @@ import { RuntimeMessage } from '../models/chrome-runtime-message.model';
   providedIn: 'root',
 })
 export class ActionsBridgeService implements OnDestroy {
+  //region Constants
+
+  /**
+   * Reconnect delay in milliseconds.
+   */
+  private static readonly RECONNECT_DELAY = 1000;
+
+  /**
+   * Name of the Chrome runtime port.
+   */
+  private static readonly PORT_NAME = 'ngrx-inspector';
+
+  //endregion
   //region DI
 
   private readonly _store: ActionsStore = inject(ActionsStore);
@@ -33,7 +46,6 @@ export class ActionsBridgeService implements OnDestroy {
   /**
    * Active connection to the Chrome runtime port.
    */
-  // @ts-ignore
   private _port: Nullable<chrome.runtime.Port>;
 
   /**
@@ -54,17 +66,7 @@ export class ActionsBridgeService implements OnDestroy {
     this._zone.run(() => this._store.clear());
   };
 
-  //region Constants
-
-  /**
-   * Reconnect delay in milliseconds.
-   */
-  private readonly _reconnectDelay = 1000;
-
-  /**
-   * Name of the Chrome runtime port.
-   */
-  private readonly _portName = 'ngrx-inspector';
+  //endregion
 
   //region Constructor
   constructor() {
@@ -88,7 +90,6 @@ export class ActionsBridgeService implements OnDestroy {
     this._cleanupPort();
     this._cleanupTimers();
 
-    // @ts-ignore
     chrome?.devtools?.network?.onNavigated?.removeListener(
       this._onNavigatedHandler,
     );
@@ -104,10 +105,8 @@ export class ActionsBridgeService implements OnDestroy {
     if (this._port) return;
 
     try {
-      // @ts-ignore
-      this._port = chrome.runtime.connect({ name: this._portName });
+      this._port = chrome.runtime.connect({ name: ActionsBridgeService.PORT_NAME });
 
-      // @ts-ignore
       const tabId: number = chrome.devtools.inspectedWindow.tabId;
 
       this._port.postMessage({
@@ -118,7 +117,6 @@ export class ActionsBridgeService implements OnDestroy {
       this._port.onMessage.addListener(this._handleMessage);
       this._port.onDisconnect.addListener(this._handleDisconnect);
 
-      // @ts-ignore
       chrome.devtools.network.onNavigated.addListener(this._onNavigatedHandler);
     } catch {
       this._scheduleReconnect();
@@ -168,7 +166,7 @@ export class ActionsBridgeService implements OnDestroy {
     this._reconnectTimer = setTimeout((): void => {
       this._reconnectTimer = null;
       this._connect();
-    }, this._reconnectDelay);
+    }, ActionsBridgeService.RECONNECT_DELAY);
   }
 
   // Mock Mode

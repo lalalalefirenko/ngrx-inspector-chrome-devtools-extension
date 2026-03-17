@@ -50,7 +50,7 @@ export class App {
   /**
    * Control for searching actions by string.
    */
-  readonly searchControl: FormControl<string> = new FormControl();
+  readonly searchControl: FormControl<string> = new FormControl('', { nonNullable: true });
 
   /**
    * Signal containing the new value of the actions search control.

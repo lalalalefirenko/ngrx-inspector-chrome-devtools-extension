@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, Signal } from '@angular/core';
 import { SettingsStoreService } from '../../../core/services/settings-store.service';
 import { FormsModule } from '@angular/forms';
+import { ActionFilter } from '../../../core/models/filter.model';
 
 /**
  * Component for configuring the extension settings.
@@ -17,10 +18,7 @@ import { FormsModule } from '@angular/forms';
 export class SettingsComponent {
   //region DI
 
-  /**
-   * Settings store service for managing action filters.
-   */
-  readonly settingsStore: SettingsStoreService = inject(SettingsStoreService);
+  private readonly _settingsStore: SettingsStoreService = inject(SettingsStoreService);
 
   //endregion
   //region Fields
@@ -30,12 +28,17 @@ export class SettingsComponent {
    */
   newPattern: string = '';
 
+  /**
+   * Current list of action filters.
+   */
+  protected readonly filters: Signal<ActionFilter[]> = this._settingsStore.filters;
+
   //endregion
   //region Constructor
 
   constructor() {
     // Load saved filters on initialization
-    this.settingsStore.load();
+    this._settingsStore.load();
   }
 
   //endregion
@@ -47,8 +50,26 @@ export class SettingsComponent {
    */
   add(): void {
     if (!this.newPattern.trim()) return;
-    this.settingsStore.add(this.newPattern.trim());
+    this._settingsStore.add(this.newPattern.trim());
     this.newPattern = '';
+  }
+
+  /**
+   * Toggles a filter on or off.
+   *
+   * @param id Filter ID to toggle.
+   */
+  protected toggle(id: string): void {
+    this._settingsStore.toggle(id);
+  }
+
+  /**
+   * Removes a filter.
+   *
+   * @param id Filter ID to remove.
+   */
+  protected remove(id: string): void {
+    this._settingsStore.remove(id);
   }
 
   //endregion

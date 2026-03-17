@@ -2,14 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
-  EffectRef,
   input,
   InputSignal,
+  linkedSignal,
   output,
   OutputEmitterRef,
   Signal,
-  signal,
   WritableSignal,
 } from '@angular/core';
 import { JsonTreeNode } from '../../../core/models/json-tree-node.model';
@@ -56,8 +54,9 @@ export class JsonTreeComponent {
 
   /**
    * Whether the current node is collapsed.
+   * Automatically resets when the node input changes (non-root nodes start collapsed).
    */
-  readonly collapsed: WritableSignal<boolean> = signal(false);
+  readonly collapsed: WritableSignal<boolean> = linkedSignal(() => !this.node().isRoot);
 
   /**
    * Preview of the collapsed value of the current tree node.
@@ -72,16 +71,6 @@ export class JsonTreeComponent {
   readonly formattedNodeValue: Signal<string> = computed((): string =>
     this._format(this.node().value),
   );
-
-  //endregion
-  //region Effects
-
-  /**
-   * Automatically expands the node if it is the root.
-   */
-  readonly showRootEffect: EffectRef = effect((): void => {
-    this.collapsed.set(!this.node().isRoot);
-  });
 
   //endregion
   //region Events

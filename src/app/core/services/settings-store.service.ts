@@ -18,7 +18,12 @@ export class SettingsStoreService {
   /**
    * NgRx action filters.
    */
-  filters: WritableSignal<ActionFilter[]> = signal<ActionFilter[]>([]);
+  private readonly _filtersSig: WritableSignal<ActionFilter[]> = signal<ActionFilter[]>([]);
+
+  /**
+   * Public readonly signal of NgRx action filters.
+   */
+  readonly filters: Signal<ActionFilter[]> = this._filtersSig.asReadonly();
 
   //endregion
   //region Constructor
@@ -30,6 +35,7 @@ export class SettingsStoreService {
       this._initMockMode();
     }
   }
+
   //endregion
 
   //region Public
@@ -40,18 +46,17 @@ export class SettingsStoreService {
   async load(): Promise<void> {
     if (!isDevToolsEnv()) return;
 
-    // @ts-ignore
     const data = await chrome.storage.local.get(STORAGE_KEY);
-    const saved: ActionFilter[] = data[STORAGE_KEY];
+    const saved = data[STORAGE_KEY] as ActionFilter[] | undefined;
 
     if (!saved || saved.length === 0) {
-      this.filters.set(DEFAULT_FILTERS);
+      this._filtersSig.set(DEFAULT_FILTERS);
       await this.save();
       return;
     }
 
     const merged: ActionFilter[] = this._mergeWithDefaults(saved);
-    this.filters.set(merged);
+    this._filtersSig.set(merged);
   }
 
   /**
@@ -59,15 +64,14 @@ export class SettingsStoreService {
    */
   async save(): Promise<void> {
     if (!isDevToolsEnv()) return;
-    // @ts-ignore
-    await chrome.storage.local.set({ [STORAGE_KEY]: this.filters() });
+    await chrome.storage.local.set({ [STORAGE_KEY]: this._filtersSig() });
   }
 
   /**
    * Adds a new filter.
    */
   add(pattern: string): void {
-    this.filters.update((list) => [
+    this._filtersSig.update((list) => [
       ...list,
       {
         id: crypto.randomUUID(),
@@ -82,7 +86,7 @@ export class SettingsStoreService {
    * Toggles a filter on or off.
    */
   toggle(id: string): void {
-    this.filters.update((list: ActionFilter[]): ActionFilter[] =>
+    this._filtersSig.update((list: ActionFilter[]): ActionFilter[] =>
       list.map(
         (f: ActionFilter): ActionFilter =>
           f.id === id ? { ...f, enabled: !f.enabled } : f,
@@ -93,13 +97,11 @@ export class SettingsStoreService {
   }
 
   /**
-   * Removes a filter.
+   * Removes a filter. Read-only filters cannot be removed.
    */
   remove(id: string): void {
-    this.filters.update((list: ActionFilter[]): ActionFilter[] =>
-      list.filter((f: ActionFilter): boolean =>
-        Boolean(f.id !== id || f.readonly),
-      ),
+    this._filtersSig.update((list: ActionFilter[]): ActionFilter[] =>
+      list.filter((f: ActionFilter): boolean => f.id !== id || !!f.readonly),
     );
 
     this.save();
@@ -113,8 +115,7 @@ export class SettingsStoreService {
    * Initializes data for dev mode.
    */
   private _initMockMode(): void {
-    // simply sets default filters into the signal
-    this.filters.set(DEFAULT_FILTERS);
+    this._filtersSig.set(DEFAULT_FILTERS);
   }
 
   /**

@@ -4,6 +4,7 @@ import {
   inject,
   input,
   InputSignal,
+  Signal,
   signal,
   WritableSignal,
 } from '@angular/core';
@@ -12,7 +13,8 @@ import { ActionDetailsTabsComponent } from './action-details-tabs/action-details
 import { ActionPayloadComponent } from './action-payload/action-payload.component';
 import { ActionDiffComponent } from './action-diff/action-diff.component';
 import { ActionStateComponent } from './action-state/action-state.component';
-import { SettingsComponent } from '../settings/settings.component';
+import { NgrxActionRecord } from '../../../core/models/ngrx-action-record.model';
+import { Nullable } from '../../../core/types/nullable.type';
 
 type ActionDetailsTab = 'payload' | 'state' | 'diff';
 
@@ -35,10 +37,7 @@ type ActionDetailsTab = 'payload' | 'state' | 'diff';
 export class ActionDetailsComponent {
   //region DI
 
-  /**
-   * NgRx actions store.
-   */
-  readonly store: ActionsStore = inject(ActionsStore);
+  private readonly _store: ActionsStore = inject(ActionsStore);
 
   //endregion
   //region Inputs
@@ -55,6 +54,37 @@ export class ActionDetailsComponent {
    * Currently active tab.
    */
   readonly currentTab: WritableSignal<ActionDetailsTab> = signal('payload');
+
+  /**
+   * The currently selected NgRx action.
+   */
+  protected readonly selectedAction: Signal<Nullable<NgrxActionRecord>> =
+    this._store.selectedAction;
+
+  /**
+   * Path to the pinned node in the state.
+   */
+  protected readonly pinnedPath: Signal<Nullable<string[]>> =
+    this._store.pinnedPath;
+
+  //endregion
+  //region Events
+
+  /**
+   * Pins a node in the state tree.
+   *
+   * @param path Path to the node to pin.
+   */
+  protected pinNode(path: string[]): void {
+    this._store.pinNode(path);
+  }
+
+  /**
+   * Unpins the currently pinned node.
+   */
+  protected unpinNode(): void {
+    this._store.unpinNode();
+  }
 
   //endregion
 }

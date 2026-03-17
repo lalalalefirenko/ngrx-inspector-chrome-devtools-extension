@@ -10,7 +10,7 @@ import { NgrxActionRecord } from '../models/ngrx-action-record.model';
 import { Nullable } from '../types/nullable.type';
 import { SettingsStoreService } from './settings-store.service';
 import { ActionFilter } from '../models/filter.model';
-import { StringUtils } from '../utils/string.utils';
+import { containsSearchWords, normalize } from '../utils/string.utils';
 
 /**
  * Interface for configuring timers that clear highlights for new NgRx actions.
@@ -55,9 +55,10 @@ export class ActionsStore {
     signal(null);
 
   /**
-   * Set of IDs for new NgRx actions to highlight.
+   * Signal containing the set of IDs for new NgRx actions to highlight.
+   * Using a signal ensures OnPush components react to changes.
    */
-  private readonly _newIds: Set<number> = new Set();
+  private readonly _newIdsSig: WritableSignal<ReadonlySet<number>> = signal(new Set<number>());
 
   /**
    * Array of active timers for clearing highlights of new NgRx actions.
@@ -97,9 +98,9 @@ export class ActionsStore {
     this._pinnedPath.asReadonly();
 
   /**
-   * Set of IDs for new NgRx actions to highlight.
+   * Signal containing the set of IDs for new NgRx actions to highlight.
    */
-  readonly newIds: Set<number> = this._newIds;
+  readonly newIds: Signal<ReadonlySet<number>> = this._newIdsSig.asReadonly();
 
   /**
    * Value of the search string.
@@ -147,12 +148,10 @@ export class ActionsStore {
 
         const matchesSearch: boolean =
           searchValue === '' ||
-          StringUtils.containsSearchWords(action.type, searchValue);
+          containsSearchWords(action.type, searchValue);
 
         const inFilters: boolean = filters.some((f: ActionFilter): boolean =>
-          StringUtils.normalize(action.type).startsWith(
-            StringUtils.normalize(f.pattern),
-          ),
+          normalize(action.type).startsWith(normalize(f.pattern)),
         );
 
         return !inFilters && matchesSearch;
@@ -194,11 +193,15 @@ export class ActionsStore {
     });
 
     // Mark the new action for highlighting
-    this._newIds.add(action.id);
+    this._newIdsSig.update((set) => new Set([...set, action.id]));
 
     // Set a timer to remove the highlight
     const timerId: ReturnType<typeof setTimeout> = setTimeout((): void => {
-      this._newIds.delete(action.id);
+      this._newIdsSig.update((set) => {
+        const next = new Set(set);
+        next.delete(action.id);
+        return next;
+      });
       this._removeHighlightTimer(action.id);
     }, this.NEW_DURATION);
 
@@ -232,7 +235,7 @@ export class ActionsStore {
     this._selectedId.set(null);
     this.searchValue.set('');
     this.unpinNode();
-    this._newIds.clear();
+    this._newIdsSig.set(new Set());
     this._clearAllHighlightTimers();
   }
 
@@ -287,8 +290,12 @@ export class ActionsStore {
     this._highlightTimers.length = 0; // Clear array
   }
 
+  /**
+   * Clears all actions except the last one, marking it as a meta action.
+   * Uses the raw actions list (not filtered) to always get the true last action.
+   */
   private _clearAllExceptLastAction(): void {
-    const actions: NgrxActionRecord[] = this.filteredActions();
+    const actions: NgrxActionRecord[] = this._actionsSig();
     const lastAction: NgrxActionRecord = {
       ...actions[actions.length - 1],
       isMeta: true,

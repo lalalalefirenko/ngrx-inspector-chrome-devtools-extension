@@ -1,4 +1,5 @@
 import { StateTreeDiffNode } from '../models/tree-diff-node.model';
+import { isNullOrUndefined } from './object.utils';
 
 /**
  * Groups a diff tree by features (first-level nodes).
@@ -126,12 +127,3 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/**
- * Checks if a value is null or undefined.
- *
- * @param value Value to check.
- * @returns True if value is null or undefined.
- */
-function isNullOrUndefined(value: unknown): boolean {
-  return value === null || value === undefined;
-}

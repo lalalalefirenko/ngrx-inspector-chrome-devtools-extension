@@ -4,12 +4,14 @@ import {
   inject,
   output,
   OutputEmitterRef,
+  Signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 
 import { ActionsStore } from '../../../core/services/actions-store.service';
 import { NgrxActionRecord } from '../../../core/models/ngrx-action-record.model';
+import { Nullable } from '../../../core/types/nullable.type';
 
 /**
  * Component displaying the list of NgRx actions (with virtualization).
@@ -26,10 +28,7 @@ import { NgrxActionRecord } from '../../../core/models/ngrx-action-record.model'
 export class ActionsListComponent {
   //region DI
 
-  /**
-   * NgRx actions store.
-   */
-  readonly store: ActionsStore = inject(ActionsStore);
+  private readonly _store: ActionsStore = inject(ActionsStore);
 
   //endregion
   //region Outputs
@@ -40,6 +39,26 @@ export class ActionsListComponent {
   readonly actionClicked: OutputEmitterRef<void> = output();
 
   //endregion
+  //region Fields
+
+  /**
+   * List of actions visible in the virtual scroll.
+   */
+  protected readonly visibleActions: Signal<NgrxActionRecord[]> =
+    this._store.visibleActions;
+
+  /**
+   * The currently selected action.
+   */
+  protected readonly selectedAction: Signal<Nullable<NgrxActionRecord>> =
+    this._store.selectedAction;
+
+  /**
+   * Signal with the set of IDs of new (highlighted) actions.
+   */
+  protected readonly newIds: Signal<ReadonlySet<number>> = this._store.newIds;
+
+  //endregion
   //region Events
 
   /**
@@ -48,7 +67,7 @@ export class ActionsListComponent {
    * @param action NgRx action that was clicked.
    */
   actionClickHandler(action: NgrxActionRecord): void {
-    this.store.select(action.id);
+    this._store.select(action.id);
     this.actionClicked.emit();
   }
 
