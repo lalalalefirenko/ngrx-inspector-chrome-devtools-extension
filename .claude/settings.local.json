@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Skill(update-config)",
+      "WebSearch",
+      "Bash(claude mcp:*)"
+    ]
+  }
+}

@@ -26,5 +26,5 @@
       "48": "icon_active_48.png"
     }
   },
-  "permissions": ["tabs", "storage"]
+  "permissions": ["storage"]
 }
