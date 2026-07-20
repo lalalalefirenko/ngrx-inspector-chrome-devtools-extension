@@ -121,7 +121,7 @@ npm run build:prod
 Lev Alefirenko
 
 LinkedIn:
-https://www.linkedin.com/in/lalefirenko/
+https://www.linkedin.com/in/lev-alefirenko
 
 # ⭐ Support
 
