@@ -1,6 +1,6 @@
 {
   "name": "ngrx-inspector-chrome-devtools-extension",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "license": "MIT",
   "author": "Lev Alefirenko",
   "scripts": {
