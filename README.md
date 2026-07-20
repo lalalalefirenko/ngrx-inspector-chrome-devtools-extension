@@ -23,17 +23,11 @@ Designed as a simple, fast, and NgRx-native alternative to Redux DevTools.
 
 ---
 
-## 📸 Preview
-
-_(add screenshots later)_
-
----
-
 ## 📦 Installation
 
 ### From Chrome Web Store
 
-_(coming soon)_
+[_(Download the extension via Chrome Web Store)_](https://chromewebstore.google.com/detail/ngrx-inspector/bmhafdgiifbmjgdpmbicgcfjglmcmlma?hl=ru&utm_source=ext_sidebar)
 
 ---
 
