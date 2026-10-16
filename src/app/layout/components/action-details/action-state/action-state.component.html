@@ -5,10 +5,23 @@
   ></action-path>
 }
 
-<json-tree
-  class="tree"
-  [isPinningEnabled]="true"
-  [node]="jsonTreeFromAction()"
-  (pinNode)="pinNode.emit($event)"
-  (unpinNode)="unpinNode.emit()"
-></json-tree>
+@if (jsonTreeFromAction(); as tree) {
+  <json-tree
+    class="tree"
+    [isPinningEnabled]="true"
+    [node]="tree"
+    (pinNode)="pinNode.emit($event)"
+    (unpinNode)="unpinNode.emit()"
+  ></json-tree>
+} @else {
+  <div class="missing-pinned-path" role="status">
+    <p>The pinned path is not present in this action's state.</p>
+    <button
+      type="button"
+      class="tool-button tool-button--accent"
+      (click)="unpinNode.emit()"
+    >
+      Unpin and show full state
+    </button>
+  </div>
+}

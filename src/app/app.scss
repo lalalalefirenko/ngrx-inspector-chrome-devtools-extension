@@ -24,10 +24,6 @@ aside {
     box-sizing: border-box;
     border: 0;
     @include mixins.border-bottom(vars.$border-strong);
-
-    &:focus {
-      outline: none;
-    }
   }
 }
 
@@ -47,5 +43,31 @@ main {
 
   .settings-btn {
     right: vars.$space-6;
+  }
+}
+
+.connection-status {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: vars.$space-3;
+  padding: vars.$space-4;
+  border-bottom: 0.0625rem solid vars.$border-light;
+  color: vars.$text-soft;
+
+  .status-dot {
+    width: 0.4375rem;
+    height: 0.4375rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: vars.$text-muted;
+  }
+
+  &[data-state="connected"] .status-dot {
+    background: vars.$success;
+  }
+
+  &[data-state="reconnecting"] .status-dot {
+    background: vars.$primary;
   }
 }

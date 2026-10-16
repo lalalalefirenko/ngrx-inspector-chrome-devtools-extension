@@ -1,50 +1,132 @@
-const portsByTabId = new Map();
+const panelsByTabId = new Map();
 
-// ===============================
-// PORT CONNECTIONS
-// ===============================
+function stopSource(connection) {
+  const source = connection.source;
+  connection.source = null;
+  try {
+    source?.disconnect();
+  } catch {
+    // Navigation or worker shutdown may have already closed this port.
+  }
+}
+
+function release(connection) {
+  if (panelsByTabId.get(connection.tabId) === connection) {
+    panelsByTabId.delete(connection.tabId);
+  }
+  stopSource(connection);
+}
+
+function closePanel(connection) {
+  release(connection);
+  try {
+    connection.port.disconnect();
+  } catch {
+    // The panel may already be gone.
+  }
+}
+
+function sendToPanel(connection, message) {
+  if (panelsByTabId.get(connection.tabId) !== connection) return false;
+  try {
+    connection.port.postMessage(message);
+    return true;
+  } catch {
+    closePanel(connection);
+    return false;
+  }
+}
+
+function publishStatus(connection, status) {
+  if (connection.status === status) return true;
+  connection.status = status;
+  return sendToPanel(connection, { type: "CONNECTION_STATUS", status });
+}
+
+function connectSource(connection) {
+  if (panelsByTabId.get(connection.tabId) !== connection || connection.source)
+    return;
+  try {
+    const source = chrome.tabs.connect(connection.tabId, {
+      name: "ngrx-inspector-source",
+      frameId: 0,
+    });
+    connection.source = source;
+    let sourceReady = false;
+    source.onMessage.addListener((message) => {
+      if (
+        panelsByTabId.get(connection.tabId) !== connection ||
+        connection.source !== source
+      )
+        return;
+      if (
+        message?.type === "SOURCE_STATUS" &&
+        typeof message.detected === "boolean"
+      ) {
+        sourceReady = true;
+        publishStatus(connection, message.detected ? "connected" : "waiting");
+      } else if (message?.type === "NGRX_ACTION") {
+        sourceReady = true;
+        if (publishStatus(connection, "connected")) {
+          sendToPanel(connection, {
+            type: "NGRX_ACTION",
+            payload: message.action,
+          });
+        }
+      }
+    });
+    source.onDisconnect.addListener(() => {
+      // Reading lastError also consumes the expected "no content script" error.
+      void chrome.runtime.lastError;
+      if (connection.source !== source) return;
+      connection.source = null;
+      if (sourceReady) {
+        // Let the panel's existing reconnect logic restore a lost source channel.
+        closePanel(connection);
+      } else {
+        publishStatus(connection, "waiting");
+      }
+    });
+  } catch {
+    publishStatus(connection, "waiting");
+  }
+}
+
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "ngrx-inspector") return;
-
-  let tabId = null;
-
-  port.onMessage.addListener((msg) => {
-    if (msg?.type === "INIT" && Number.isInteger(msg.tabId) && msg.tabId >= 0) {
-      if (tabId !== null && portsByTabId.get(tabId) === port) {
-        portsByTabId.delete(tabId);
-      }
-      tabId = msg.tabId;
-      portsByTabId.set(tabId, port);
-    }
+  let connection;
+  port.onMessage.addListener((message) => {
+    if (
+      message?.type !== "INIT" ||
+      !Number.isInteger(message.tabId) ||
+      message.tabId < 0
+    )
+      return;
+    if (connection) release(connection);
+    const previous = panelsByTabId.get(message.tabId);
+    if (previous) release(previous);
+    connection = { tabId: message.tabId, port, source: null, status: null };
+    panelsByTabId.set(connection.tabId, connection);
+    publishStatus(connection, "waiting");
+    connectSource(connection);
   });
-
   port.onDisconnect.addListener(() => {
-    if (tabId !== null && portsByTabId.get(tabId) === port) {
-      portsByTabId.delete(tabId);
-    }
+    if (connection) release(connection);
   });
 });
 
-// ===============================
-// RECEIVE ACTIONS
-// ===============================
-chrome.runtime.onMessage.addListener((msg, sender) => {
+chrome.runtime.onMessage.addListener((message, sender) => {
   if (!Number.isInteger(sender.tab?.id) || sender.tab.id < 0) return;
-  const tabId = sender.tab.id;
-
-  if (msg?.type === "NGRX_ACTION") {
-    const port = portsByTabId.get(tabId);
-    if (port) {
-      try {
-        port.postMessage({ type: "NGRX_ACTION", payload: msg.action });
-      } catch {
-        if (portsByTabId.get(tabId) === port) portsByTabId.delete(tabId);
-      }
-    }
-  } else if (msg?.type === "NGRX_DETECTED") {
-    chrome.action.setIcon({
-      tabId: tabId,
-      path: "icon_active_16.png",
-    });
+  if (sender.frameId !== undefined && sender.frameId !== 0) return;
+  const connection = panelsByTabId.get(sender.tab.id);
+  if (message?.type === "NGRX_CONTENT_READY" && connection) {
+    stopSource(connection);
+    publishStatus(connection, "waiting");
+    connectSource(connection);
+  } else if (message?.type === "NGRX_DETECTED") {
+    chrome.action
+      .setIcon({ tabId: sender.tab.id, path: "icon_active_16.png" })
+      .catch(() => {});
+    if (connection) connectSource(connection);
   }
 });

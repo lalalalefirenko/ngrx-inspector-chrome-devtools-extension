@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, Signal } from '@angular/cor
 import { SettingsStoreService } from '../../../core/services/settings-store.service';
 import { FormsModule } from '@angular/forms';
 import { ActionFilter } from '../../../core/models/filter.model';
+import { ClearAllSvgComponent } from '../svg/clear-all-svg/clear-all-svg.component';
 
 /**
  * Component for configuring the extension settings.
@@ -13,7 +14,7 @@ import { ActionFilter } from '../../../core/models/filter.model';
   standalone: true,
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
-  imports: [FormsModule],
+  imports: [FormsModule, ClearAllSvgComponent],
 })
 export class SettingsComponent {
   //region DI

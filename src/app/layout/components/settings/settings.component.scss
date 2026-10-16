@@ -1,102 +1,122 @@
 @use "variables" as vars;
-@use "mixins" as mixins;
 
 .settings-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
   padding: vars.$space-8;
-  font-family: "Segoe UI", Roboto, monospace;
-}
+  color: #333;
+  font: 0.8125rem/1.4 system-ui, sans-serif;
 
-.settings-header {
-  margin-bottom: vars.$space-8;
+  h2 {
+    margin: 0 0 vars.$space-10;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
 
   h3 {
-    margin: 0;
-    font-size: vars.$space-8;
+    margin: 0 0 vars.$space-6;
+    font-size: inherit;
     font-weight: 600;
   }
 }
 
 .add-filter {
   display: flex;
+  align-items: center;
   gap: vars.$space-4;
-  margin-bottom: vars.$space-8;
+}
 
-  .filter-input {
-    flex-basis: 80%;
-    padding: vars.$space-3 vars.$space-5;
-    border: thin solid vars.$border-strong;
-    outline: none;
-    transition: border-color 0.2s;
+.filter-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 2rem;
+  padding: 0 vars.$space-5;
+  border: 0.0625rem solid vars.$border-strong;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
 
-    &:focus {
-      border-color: vars.$primary-hover;
-    }
-  }
+.add-btn {
+  flex-shrink: 0;
+}
 
-  .add-btn {
-    padding: vars.$space-3 vars.$space-6;
-    flex-basis: 20%;
-    border: none;
-    background-color: vars.$primary;
-    color: #fff;
-    cursor: pointer;
-    transition: background-color 0.2s;
+.prefixes-separator {
+  margin: vars.$space-8 0;
+  border: 0;
+  border-top: 0.0625rem solid vars.$border-medium;
+}
 
-    &:hover {
-      background-color: vars.$primary-hover;
-    }
-  }
+.prefix-list-title {
+  margin: 0 0 vars.$space-4;
+  font-size: inherit;
+  font-weight: 600;
 }
 
 .filters {
   list-style: none;
   padding: 0;
   margin: 0;
+}
 
-  .filter-item {
-    @include mixins.flex-center;
-    justify-content: space-between;
-    padding: vars.$space-1 0;
-    transition: background 0.2s;
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: vars.$space-6;
+  min-height: 2rem;
+  padding: vars.$space-2 0;
+}
 
-    &:hover {
-      background-color: rgba(25, 118, 210, 0.03);
-    }
+.filter-label {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+  gap: vars.$space-4;
+  cursor: pointer;
 
-    .filter-label {
-      @include mixins.flex-center;
-      gap: vars.$space-3;
-      cursor: pointer;
-
-      input[type="checkbox"] {
-        width: vars.$space-8;
-        height: vars.$space-8;
-      }
-    }
-
-    .default-badge {
-      background: vars.$border-light;
-      color: vars.$text-soft;
-      padding: vars.$space-1 vars.$space-3;
-      border-radius: vars.$space-2;
-      margin-left: vars.$space-4;
-    }
-
-    .remove-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: vars.$danger;
-      transition: opacity 0.2s;
-
-      &:hover {
-        opacity: 0.7;
-      }
-    }
+  input {
+    flex-shrink: 0;
+    width: 0.875rem;
+    height: 0.875rem;
+    margin: vars.$space-1 0 0;
+    accent-color: vars.$primary;
   }
 }
 
-.hide-actions-block-setting {
-  padding: vars.$space-4;
-  border: thin solid vars.$border-strong;
+.filter-content {
+  min-width: 0;
+}
+
+.filter-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: vars.$space-3;
+}
+
+.filter-text {
+  min-width: 0;
+  font: 0.75rem/1.5 vars.$font-mono;
+  overflow-wrap: anywhere;
+}
+
+.filter-description {
+  display: block;
+  margin-top: vars.$space-1;
+  color: vars.$text-soft;
+  font-size: 0.75rem;
+}
+
+.default-badge {
+  flex-shrink: 0;
+  padding: vars.$space-1 vars.$space-3;
+  border-radius: vars.$space-2;
+  background: vars.$border-light;
+  color: vars.$text-soft;
+  font-size: 0.6875rem;
+  white-space: nowrap;
 }

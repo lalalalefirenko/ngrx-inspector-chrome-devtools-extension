@@ -8,6 +8,12 @@ import { DEFAULT_FILTERS } from '../constants/settings.constants';
  */
 const STORAGE_KEY = 'actionFilters';
 
+const RETIRED_DEFAULT_FILTER_IDS = new Set([
+  'default-router',
+  'default-screen-width',
+  'default-websocket',
+]);
+
 /**
  * Store service for managing NgRx action filtering.
  */
@@ -18,7 +24,9 @@ export class SettingsStoreService {
   /**
    * NgRx action filters.
    */
-  private readonly _filtersSig: WritableSignal<ActionFilter[]> = signal<ActionFilter[]>([]);
+  private readonly _filtersSig: WritableSignal<ActionFilter[]> = signal<
+    ActionFilter[]
+  >([]);
 
   /**
    * Public readonly signal of NgRx action filters.
@@ -57,6 +65,12 @@ export class SettingsStoreService {
 
     const merged: ActionFilter[] = this._mergeWithDefaults(saved);
     this._filtersSig.set(merged);
+    if (
+      merged.length !== saved.length ||
+      merged.some((filter, index) => filter !== saved[index])
+    ) {
+      await this.save();
+    }
   }
 
   /**
@@ -87,9 +101,8 @@ export class SettingsStoreService {
    */
   toggle(id: string): void {
     this._filtersSig.update((list: ActionFilter[]): ActionFilter[] =>
-      list.map(
-        (f: ActionFilter): ActionFilter =>
-          f.id === id ? { ...f, enabled: !f.enabled } : f,
+      list.map((f: ActionFilter): ActionFilter =>
+        f.id === id ? { ...f, enabled: !f.enabled } : f,
       ),
     );
 
@@ -122,7 +135,11 @@ export class SettingsStoreService {
    * Merges saved filters with default filters (new ones are added automatically).
    */
   private _mergeWithDefaults(saved: ActionFilter[]): ActionFilter[] {
-    const map = new Map(saved.map((f: ActionFilter) => [f.id, f]));
+    const map = new Map(
+      saved
+        .filter((filter) => !RETIRED_DEFAULT_FILTER_IDS.has(filter.id))
+        .map((f: ActionFilter) => [f.id, f]),
+    );
     for (const def of DEFAULT_FILTERS) {
       if (!map.has(def.id)) {
         map.set(def.id, def);

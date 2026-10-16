@@ -104,10 +104,11 @@ export class ActionStateComponent {
   );
 
   /**
-   * State of the current NgRx action transformed into a JSON tree.
+   * Tree to display, or null when the pinned path is absent in this snapshot.
    */
-  readonly jsonTreeFromAction: Signal<JsonTreeNode> = computed(
-    (): JsonTreeNode => this.pinnedNode() ?? this.fullTree(),
+  readonly jsonTreeFromAction: Signal<Nullable<JsonTreeNode>> = computed(
+    (): Nullable<JsonTreeNode> =>
+      this.pinnedPath()?.length ? this.pinnedNode() : this.fullTree(),
   );
 
   //endregion

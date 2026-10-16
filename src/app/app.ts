@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   EffectRef,
   inject,
@@ -18,6 +19,36 @@ import { debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { Nullable } from './core/types/nullable.type';
 import { ClearAllSvgComponent } from './layout/components/svg/clear-all-svg/clear-all-svg.component';
 import { SettingsSvgComponent } from './layout/components/svg/settings-svg/settings-svg.component';
+import {
+  ActionsBridgeService,
+  ConnectionStatus,
+} from './core/services/actions-bridge.service';
+
+const CONNECTION_STATES: Record<
+  ConnectionStatus,
+  { label: string; description: string }
+> = {
+  waiting: {
+    label: 'Waiting for NgRx',
+    description: 'Waiting for an action from this page.',
+  },
+  connected: {
+    label: 'Connected',
+    description: 'Receiving actions from this page.',
+  },
+  reconnecting: {
+    label: 'Reconnecting…',
+    description: 'Connection lost. Reconnecting automatically.',
+  },
+  paused: {
+    label: 'Paused',
+    description: 'Capture pauses while this panel is hidden.',
+  },
+  mock: {
+    label: 'Mock data',
+    description: 'Showing sample actions outside Chrome DevTools.',
+  },
+};
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,8 +70,16 @@ export class App {
 
   private readonly _storeService: ActionsStore = inject(ActionsStore);
 
+  private readonly _bridgeService = inject(ActionsBridgeService);
+
   //endregion
   //region Fields
+
+  readonly connectionStatus = this._bridgeService.connectionStatus;
+
+  readonly connectionInfo = computed(
+    () => CONNECTION_STATES[this.connectionStatus()],
+  );
 
   /**
    * Is the settings component currently open?
@@ -50,7 +89,9 @@ export class App {
   /**
    * Control for searching actions by string.
    */
-  readonly searchControl: FormControl<string> = new FormControl('', { nonNullable: true });
+  readonly searchControl: FormControl<string> = new FormControl('', {
+    nonNullable: true,
+  });
 
   /**
    * Signal containing the new value of the actions search control.

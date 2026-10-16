@@ -38,7 +38,13 @@ export class ActionsStore implements OnDestroy {
   /**
    * Records retained for inspection until selection changes or the session clears.
    */
-  private readonly _selection: WritableSignal<SelectedActionContext | undefined> = signal(undefined);
+  private readonly _selection: WritableSignal<
+    SelectedActionContext | undefined
+  > = signal(undefined);
+
+  private readonly _captureStarts = new WeakSet<NgrxActionRecord>();
+
+  private _captureInterrupted = false;
 
   /**
    * Path to the pinned node in the state.
@@ -50,7 +56,9 @@ export class ActionsStore implements OnDestroy {
    * Signal containing the set of IDs for new NgRx actions to highlight.
    * Using a signal ensures OnPush components react to changes.
    */
-  private readonly _newIdsSig: WritableSignal<ReadonlySet<number>> = signal(new Set<number>());
+  private readonly _newIdsSig: WritableSignal<ReadonlySet<number>> = signal(
+    new Set<number>(),
+  );
 
   /** Deadlines retain IDs only, bounded by the records still in history. */
   private readonly _highlightExpiries = new Map<number, number>();
@@ -112,9 +120,8 @@ export class ActionsStore implements OnDestroy {
   /**
    * The predecessor captured at selection time, even if history later evicts it.
    */
-  readonly selectedPreviousAction: Signal<Nullable<NgrxActionRecord>> = computed(
-    () => this._selection()?.previousAction,
-  );
+  readonly selectedPreviousAction: Signal<Nullable<NgrxActionRecord>> =
+    computed(() => this._selection()?.previousAction);
 
   /**
    * Actions after applying filters.
@@ -137,8 +144,7 @@ export class ActionsStore implements OnDestroy {
         }
 
         const matchesSearch: boolean =
-          searchValue === '' ||
-          containsSearchWords(action.type, searchValue);
+          searchValue === '' || containsSearchWords(action.type, searchValue);
 
         const inFilters: boolean = filters.some((f: ActionFilter): boolean =>
           normalize(action.type).startsWith(normalize(f.pattern)),
@@ -161,10 +167,13 @@ export class ActionsStore implements OnDestroy {
   );
 
   /** Selected record displayed separately when it is outside the current list. */
-  readonly retainedSelectedAction: Signal<Nullable<NgrxActionRecord>> = computed(() => {
-    const selected = this.selectedAction();
-    return selected && !this.visibleActions().includes(selected) ? selected : undefined;
-  });
+  readonly retainedSelectedAction: Signal<Nullable<NgrxActionRecord>> =
+    computed(() => {
+      const selected = this.selectedAction();
+      return selected && !this.visibleActions().includes(selected)
+        ? selected
+        : undefined;
+    });
 
   readonly latestVisibleAction: Signal<Nullable<NgrxActionRecord>> = computed(
     () => this.visibleActions().at(-1),
@@ -182,13 +191,17 @@ export class ActionsStore implements OnDestroy {
    * @param action NgRx action record to add
    */
   add(action: NgrxActionRecord): void {
+    if (this._captureInterrupted) {
+      this._captureStarts.add(action);
+      this._captureInterrupted = false;
+    }
     const list = this._actionsSig();
     const evicted = list.length >= this.MAX_ACTIONS ? list[0] : undefined;
     const next = evicted ? list.slice(1) : list.slice();
     next.push(action);
     this._actionsSig.set(next);
 
-    if (evicted && !next.some(record => record.id === evicted.id)) {
+    if (evicted && !next.some((record) => record.id === evicted.id)) {
       this._highlightExpiries.delete(evicted.id);
     }
     this._highlightExpiries.set(action.id, Date.now() + this.NEW_DURATION);
@@ -203,13 +216,23 @@ export class ActionsStore implements OnDestroy {
    */
   select(id: number): void {
     const actions = this._actionsSig();
-    const index = actions.findIndex(action => action.id === id && !action.isMeta);
+    const index = actions.findIndex(
+      (action) => action.id === id && !action.isMeta,
+    );
     if (index < 0 || this.selectedAction() === actions[index]) return;
 
     this._selection.set({
       action: actions[index],
-      previousAction: index > 0 ? actions[index - 1] : undefined,
+      previousAction:
+        index > 0 && !this._captureStarts.has(actions[index])
+          ? actions[index - 1]
+          : undefined,
     });
+  }
+
+  /** The next action cannot be compared with a snapshot from before a pause. */
+  markCaptureGap(): void {
+    this._captureInterrupted = true;
   }
 
   /**
@@ -261,7 +284,8 @@ export class ActionsStore implements OnDestroy {
 
   /** One scheduler expires highlights without closing over snapshots. */
   private _scheduleHighlightExpiry(): void {
-    if (this._highlightTimer !== undefined || !this._highlightExpiries.size) return;
+    if (this._highlightTimer !== undefined || !this._highlightExpiries.size)
+      return;
 
     const nextExpiry = Math.min(...this._highlightExpiries.values());
     const delay = Math.max(nextExpiry - Date.now(), this.HIGHLIGHT_BATCH_DELAY);

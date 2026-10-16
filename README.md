@@ -21,6 +21,17 @@ is outside the current list, it appears in a separate row. Click **Latest action
 to inspect the newest matching event. Clearing history or navigating the inspected
 page releases the selection.
 
+The status below search shows whether the panel is waiting for NgRx, connected,
+or reconnecting. Capture pauses when you switch to another DevTools panel or
+close DevTools. Existing history and selection stay available when switching
+panels; reopening captures future events without replaying events from the pause.
+The first action after a capture interruption has no diff baseline.
+
+This stops forwarding snapshots from the content script to the worker. The
+application bridge still sends its existing page messages; no application changes
+or additional extension permissions are required. Only `@ngrx` is provided as a
+default prefix filter; custom filters can still be added.
+
 ---
 
 ## Installation

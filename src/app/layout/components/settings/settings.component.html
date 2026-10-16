@@ -1,43 +1,84 @@
-<div class="settings-page">
-  <div class="settings-header">
-    <h3>SETTINGS</h3>
-  </div>
+<section class="settings-page" aria-labelledby="settings-title">
+  <h2 id="settings-title">Settings</h2>
 
-  <div class="hide-actions-block-setting">
-    <p>HIDE ACTIONS WITH PREFIX</p>
-    <div class="add-filter">
+  <section aria-labelledby="filters-title">
+    <h3 id="filters-title">Hide actions by prefix</h3>
+    <form class="add-filter" (ngSubmit)="add(); prefixInput.focus()">
       <input
+        #prefixInput
+        name="prefix"
+        aria-label="Action name prefix to hide"
         [(ngModel)]="newPattern"
-        placeholder="Prefix (@ngrx, [Router], ...)"
+        placeholder="e.g. [Users]"
+        autocomplete="off"
+        spellcheck="false"
         class="filter-input"
       />
-      <button class="add-btn" (click)="add()">Add</button>
-    </div>
+      <button
+        type="submit"
+        class="tool-button tool-button--accent add-btn"
+        aria-label="Add prefix filter"
+        [disabled]="!newPattern.trim()"
+      >
+        Add
+      </button>
+    </form>
 
-    <ul class="filters">
+    <hr class="prefixes-separator" />
+    <h4 class="prefix-list-title" id="prefix-list-title">Prefixes to hide</h4>
+    <ul class="filters" aria-labelledby="prefix-list-title">
       @for (filter of filters(); track filter.id) {
         <li class="filter-item">
           <label class="filter-label">
             <input
               type="checkbox"
               [checked]="filter.enabled"
+              [attr.aria-label]="'Hide actions starting with ' + filter.pattern"
+              [attr.aria-describedby]="
+                filter.readonly ? 'filter-info-' + filter.id : null
+              "
               (change)="toggle(filter.id)"
             />
-            <span class="filter-text">{{ filter.pattern }}</span>
+            <span class="filter-content">
+              <span class="filter-name">
+                <code class="filter-text">{{ filter.pattern }}</code>
+                @if (filter.readonly) {
+                  <span
+                    class="default-badge"
+                    title="Included with the extension"
+                    >Built-in</span
+                  >
+                }
+              </span>
+              @if (filter.readonly) {
+                <span
+                  class="filter-description"
+                  [id]="'filter-info-' + filter.id"
+                >
+                  NgRx internal actions
+                </span>
+              }
+            </span>
           </label>
 
-          @if (filter.readonly) {
-            <span class="default-badge">default</span>
-          } @else {
+          @if (!filter.readonly) {
             <button
-              class="remove-btn"
+              class="tool-button tool-button--icon tool-button--danger remove-btn"
+              type="button"
+              [attr.aria-label]="'Remove filter ' + filter.pattern"
+              title="Remove filter"
               (click)="remove(filter.id)"
             >
-              ❌
+              <clear-all-svg
+                width="16px"
+                height="16px"
+                fill="currentColor"
+                aria-hidden="true"
+              />
             </button>
           }
         </li>
       }
     </ul>
-  </div>
-</div>
+  </section>
+</section>

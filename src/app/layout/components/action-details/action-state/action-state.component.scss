@@ -4,3 +4,16 @@
   display: block;
   margin-top: vars.$space-4;
 }
+
+.missing-pinned-path {
+  margin-top: vars.$space-4;
+  padding: vars.$space-8;
+  border: thin solid vars.$border-medium;
+  border-radius: vars.$space-3;
+  color: vars.$text-soft;
+
+  p {
+    margin: 0 0 vars.$space-6;
+    line-height: 1.5;
+  }
+}

@@ -209,4 +209,34 @@ describe('ActionsStore', () => {
       expect(vi.getTimerCount()).toBe(0);
     },
   );
+
+  it('keeps captured comparisons but prevents diffs across a capture gap', () => {
+    const first = record(1);
+    const second = record(2);
+    store.add(first);
+    store.add(second);
+    store.select(2);
+    store.markCaptureGap();
+    expect(store.selectedPreviousAction()).toBe(first);
+    const resumed = record(3);
+    store.add(resumed);
+    store.select(3);
+    expect(store.selectedPreviousAction()).toBeUndefined();
+    store.add(record(4));
+    store.select(4);
+    expect(store.selectedPreviousAction()).toBe(resumed);
+    store.select(2);
+    expect(store.selectedPreviousAction()).toBe(first);
+    store.select(3);
+    expect(store.selectedPreviousAction()).toBeUndefined();
+  });
+
+  it('does not turn a pre-pause snapshot preserved by Clear into a valid baseline', () => {
+    store.add(record(1));
+    store.markCaptureGap();
+    store.clear();
+    store.add(record(2));
+    store.select(2);
+    expect(store.selectedPreviousAction()).toBeUndefined();
+  });
 });

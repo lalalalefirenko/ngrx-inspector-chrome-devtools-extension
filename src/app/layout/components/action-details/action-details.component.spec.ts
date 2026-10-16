@@ -94,4 +94,50 @@ describe('ActionDetailsComponent retained inspection', () => {
       expect(fixture.nativeElement.querySelector('.tab-content')).toBeNull();
     },
   );
+
+  it('keeps a missing pin and restores its branch when the original action is selected', () => {
+    store.add({ ...record(1), state: { user: { profile: { name: 'Ada' } } } });
+    store.add({ ...record(2), state: { user: null } });
+    store.select(1);
+    store.pinNode(['user', 'profile']);
+    fixture.componentInstance.currentTab.set('state');
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('json-tree').textContent,
+    ).toContain('Ada');
+
+    store.select(2);
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('[role="status"]'),
+    ).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('json-tree')).toBeNull();
+    expect(store.pinnedPath()).toEqual(['Store', 'user', 'profile']);
+
+    store.select(1);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="status"]')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('json-tree').textContent,
+    ).toContain('Ada');
+    expect(store.pinnedPath()).toEqual(['Store', 'user', 'profile']);
+  });
+
+  it('unpins a missing branch and displays the full selected state', () => {
+    store.add(record(1));
+    store.select(1);
+    store.pinNode(['user', 'profile']);
+    fixture.componentInstance.currentTab.set('state');
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('[role="status"] button').click();
+    fixture.detectChanges();
+
+    expect(store.pinnedPath()).toBeNull();
+    expect(store.selectedAction()?.id).toBe(1);
+    expect(fixture.nativeElement.querySelector('action-path')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="status"]')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('json-tree').textContent,
+    ).toContain('count');
+  });
 });

@@ -42,6 +42,13 @@ describe('ActionsBridgeService', () => {
   let connect: ReturnType<typeof vi.fn>;
   let store: ActionsStore;
 
+  function setVisible(visible: boolean): void {
+    (
+      window as Window & { __ngrxInspectorPanelVisible?: boolean }
+    ).__ngrxInspectorPanelVisible = visible;
+    window.dispatchEvent(new Event('ngrx-inspector-visibility'));
+  }
+
   beforeEach(() => {
     vi.useFakeTimers();
     port = createPort();
@@ -67,6 +74,8 @@ describe('ActionsBridgeService', () => {
     vi.clearAllTimers();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    delete (window as Window & { __ngrxInspectorPanelVisible?: boolean })
+      .__ngrxInspectorPanelVisible;
   });
 
   it('retries after INIT fails on an already created port', () => {
@@ -183,5 +192,128 @@ describe('ActionsBridgeService', () => {
     port.onMessage.emit({ type: 'NGRX_ACTION', payload: action });
 
     expect(store.actions()).toEqual([action]);
+  });
+
+  it('waits for NgRx detection instead of treating an open worker port as connected', () => {
+    const bridge = TestBed.inject(ActionsBridgeService);
+    expect(bridge.connectionStatus()).toBe('waiting');
+    port.onMessage.emit({ type: 'CONNECTION_STATUS', status: 'connected' });
+    expect(bridge.connectionStatus()).toBe('connected');
+    vi.advanceTimersByTime(60000);
+    expect(bridge.connectionStatus()).toBe('connected');
+    expect(store.actions()).toEqual([]);
+  });
+
+  it('reports connected only for valid actions and ignores invalid status messages', () => {
+    const bridge = TestBed.inject(ActionsBridgeService);
+    for (const status of [
+      undefined,
+      null,
+      'mock',
+      'paused',
+      'reconnecting',
+      true,
+    ]) {
+      port.onMessage.emit({ type: 'CONNECTION_STATUS', status });
+    }
+    port.onMessage.emit({ type: 'NGRX_ACTION', payload: {} });
+    expect(bridge.connectionStatus()).toBe('waiting');
+    port.onMessage.emit({ type: 'NGRX_ACTION', payload: validAction });
+    expect(bridge.connectionStatus()).toBe('connected');
+  });
+
+  it('reports reconnecting after worker loss and preserves existing inspection', () => {
+    const bridge = TestBed.inject(ActionsBridgeService);
+    port.onMessage.emit({ type: 'NGRX_ACTION', payload: validAction });
+    store.select(1);
+    port.onDisconnect.emit();
+    expect(bridge.connectionStatus()).toBe('reconnecting');
+    expect(store.selectedAction()).toBe(validAction);
+    vi.advanceTimersByTime(1000);
+    port.onMessage.emit({ type: 'CONNECTION_STATUS', status: 'connected' });
+    expect(bridge.connectionStatus()).toBe('connected');
+  });
+
+  it('pauses while hidden, keeps inspection and resumes without a stale diff baseline', () => {
+    const bridge = TestBed.inject(ActionsBridgeService);
+    port.onMessage.emit({ type: 'NGRX_ACTION', payload: validAction });
+    store.select(1);
+    setVisible(false);
+    expect(bridge.connectionStatus()).toBe('paused');
+    expect(port.disconnect).toHaveBeenCalledOnce();
+    expect(port.onMessage.size()).toBe(0);
+    vi.advanceTimersByTime(5000);
+    expect(connect).toHaveBeenCalledOnce();
+    expect(store.selectedAction()).toBe(validAction);
+    expect(store.actions()).toEqual([validAction]);
+    setVisible(true);
+    expect(connect).toHaveBeenCalledTimes(2);
+    expect(bridge.connectionStatus()).toBe('waiting');
+    const next = { ...validAction, id: 2, state: { count: 10 } };
+    port.onMessage.emit({ type: 'NGRX_ACTION', payload: next });
+    store.select(2);
+    expect(bridge.connectionStatus()).toBe('connected');
+    expect(store.selectedPreviousAction()).toBeUndefined();
+    port.onMessage.emit({ type: 'NGRX_ACTION', payload: { ...next, id: 3 } });
+    store.select(3);
+    expect(store.selectedPreviousAction()).toBe(next);
+  });
+
+  it('cancels reconnect attempts when hidden and restarts them only after showing', () => {
+    const bridge = TestBed.inject(ActionsBridgeService);
+    port.onDisconnect.emit();
+    setVisible(false);
+    vi.advanceTimersByTime(5000);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(connect).toHaveBeenCalledOnce();
+    expect(bridge.connectionStatus()).toBe('paused');
+    setVisible(true);
+    expect(connect).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not subscribe if hidden before the Angular application starts', () => {
+    setVisible(false);
+    const bridge = TestBed.inject(ActionsBridgeService);
+    expect(bridge.connectionStatus()).toBe('paused');
+    expect(connect).not.toHaveBeenCalled();
+    setVisible(true);
+    expect(connect).toHaveBeenCalledOnce();
+  });
+
+  it('marks a source interruption as a gap even if the panel port is still open', () => {
+    const bridge = TestBed.inject(ActionsBridgeService);
+    port.onMessage.emit({ type: 'NGRX_ACTION', payload: validAction });
+    port.onMessage.emit({ type: 'CONNECTION_STATUS', status: 'waiting' });
+    expect(bridge.connectionStatus()).toBe('waiting');
+    port.onMessage.emit({
+      type: 'NGRX_ACTION',
+      payload: { ...validAction, id: 2 },
+    });
+    store.select(2);
+    expect(store.selectedPreviousAction()).toBeUndefined();
+  });
+
+  it('resets detection on navigation and removes its visibility listener on destruction', () => {
+    const remove = vi.spyOn(window, 'removeEventListener');
+    const bridge = TestBed.inject(ActionsBridgeService);
+    port.onMessage.emit({ type: 'NGRX_ACTION', payload: validAction });
+    navigated.emit('https://next-page.example');
+    expect(bridge.connectionStatus()).toBe('waiting');
+    expect(connect).toHaveBeenCalledTimes(2);
+    bridge.ngOnDestroy();
+    expect(remove).toHaveBeenCalledWith(
+      'ngrx-inspector-visibility',
+      expect.any(Function),
+    );
+    setVisible(false);
+    setVisible(true);
+    expect(connect).toHaveBeenCalledTimes(2);
+    remove.mockRestore();
+  });
+
+  it('identifies mock data outside DevTools', () => {
+    vi.stubGlobal('chrome', undefined);
+    const bridge = TestBed.inject(ActionsBridgeService);
+    expect(bridge.connectionStatus()).toBe('mock');
   });
 });

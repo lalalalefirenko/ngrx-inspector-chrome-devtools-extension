@@ -5,6 +5,16 @@
       placeholder="search... minimum 2 symbols required"
       [formControl]="searchControl"
     />
+    <div
+      class="connection-status"
+      role="status"
+      aria-atomic="true"
+      [attr.data-state]="connectionStatus()"
+      [title]="connectionInfo().description"
+    >
+      <span class="status-dot" aria-hidden="true"></span>
+      <span>{{ connectionInfo().label }}</span>
+    </div>
     <actions-list (actionClicked)="closeSettings()" />
   </aside>
   <main>

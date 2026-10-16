@@ -1,9 +1,14 @@
 import { NgrxActionRecord } from '../models/ngrx-action-record.model';
-import { inject, Injectable, NgZone, OnDestroy } from '@angular/core';
+import { inject, Injectable, NgZone, OnDestroy, signal } from '@angular/core';
 import { ActionsStore } from './actions-store.service';
 import { isDevToolsEnv } from '../utils/dev-mode.utils';
 import { Nullable } from '../types/nullable.type';
 import { isNgrxActionMessage } from '../utils/action-record.utils';
+
+export type ConnectionStatus =
+  'waiting' | 'connected' | 'reconnecting' | 'paused' | 'mock';
+
+type InspectorPanelWindow = Window & { __ngrxInspectorPanelVisible?: boolean };
 
 /**
  * Bridge service between the DevTools extension panel and the inspected page.
@@ -55,6 +60,12 @@ export class ActionsBridgeService implements OnDestroy {
 
   private _destroyed = false;
 
+  private _visible = true;
+
+  private readonly _connectionStatus = signal<ConnectionStatus>('waiting');
+
+  readonly connectionStatus = this._connectionStatus.asReadonly();
+
   /**
    * Mock mode timers.
    */
@@ -65,7 +76,31 @@ export class ActionsBridgeService implements OnDestroy {
    * Stored as a reference for correct removeListener.
    */
   private readonly _onNavigatedHandler = (): void => {
-    this._zone.run(() => this._store.reset());
+    if (this._destroyed) return;
+    this._zone.run(() => {
+      this._store.reset();
+      if (this._visible) {
+        this._cleanupPort();
+        this._connect();
+      }
+    });
+  };
+
+  private readonly _onVisibilityHandler = (): void => {
+    const visible =
+      (window as InspectorPanelWindow).__ngrxInspectorPanelVisible !== false;
+    if (this._destroyed || this._visible === visible) return;
+    this._visible = visible;
+    this._zone.run(() => {
+      if (visible) {
+        this._connect();
+      } else {
+        this._connectionStatus.set('paused');
+        this._store.markCaptureGap();
+        this._cleanupPort();
+        this._cleanupTimers();
+      }
+    });
   };
 
   //endregion
@@ -73,9 +108,17 @@ export class ActionsBridgeService implements OnDestroy {
   //region Constructor
   constructor() {
     if (isDevToolsEnv()) {
+      this._visible =
+        (window as InspectorPanelWindow).__ngrxInspectorPanelVisible !== false;
+      window.addEventListener(
+        'ngrx-inspector-visibility',
+        this._onVisibilityHandler,
+      );
       chrome.devtools.network.onNavigated.addListener(this._onNavigatedHandler);
-      this._connect();
+      if (this._visible) this._connect();
+      else this._connectionStatus.set('paused');
     } else {
+      this._connectionStatus.set('mock');
       this._initMockMode();
     }
   }
@@ -93,9 +136,15 @@ export class ActionsBridgeService implements OnDestroy {
     this._destroyed = true;
     this._cleanupPort();
     this._cleanupTimers();
+    window.removeEventListener(
+      'ngrx-inspector-visibility',
+      this._onVisibilityHandler,
+    );
 
     if (typeof chrome !== 'undefined') {
-      chrome.devtools?.network?.onNavigated?.removeListener(this._onNavigatedHandler);
+      chrome.devtools?.network?.onNavigated?.removeListener(
+        this._onNavigatedHandler,
+      );
     }
   }
 
@@ -106,10 +155,13 @@ export class ActionsBridgeService implements OnDestroy {
    * Establishes a connection with the Chrome runtime.
    */
   private _connect(): void {
-    if (this._port || this._destroyed) return;
+    if (this._port || this._destroyed || !this._visible) return;
 
     try {
-      this._port = chrome.runtime.connect({ name: ActionsBridgeService.PORT_NAME });
+      this._connectionStatus.set('waiting');
+      this._port = chrome.runtime.connect({
+        name: ActionsBridgeService.PORT_NAME,
+      });
 
       this._port.onMessage.addListener(this._handleMessage);
       this._port.onDisconnect.addListener(this._handleDisconnect);
@@ -148,18 +200,39 @@ export class ActionsBridgeService implements OnDestroy {
   /**
    * Handler for incoming messages from the runtime port.
    */
-  private readonly _handleMessage = (
-    msg: unknown,
-  ): void => {
-    if (this._destroyed || !isNgrxActionMessage(msg)) return;
+  private readonly _handleMessage = (msg: unknown): void => {
+    if (this._destroyed || !this._visible || !this._port) return;
+    if (
+      typeof msg === 'object' &&
+      msg !== null &&
+      'type' in msg &&
+      msg.type === 'CONNECTION_STATUS' &&
+      'status' in msg &&
+      (msg.status === 'waiting' || msg.status === 'connected')
+    ) {
+      const status = msg.status;
+      this._zone.run(() => {
+        if (status === 'waiting' && this._connectionStatus() === 'connected') {
+          this._store.markCaptureGap();
+        }
+        this._connectionStatus.set(status);
+      });
+      return;
+    }
+    if (!isNgrxActionMessage(msg)) return;
 
-    this._zone.run(() => this._store.add(msg.payload));
+    this._zone.run(() => {
+      this._connectionStatus.set('connected');
+      this._store.add(msg.payload);
+    });
   };
 
   /**
    * Handler for port disconnect events.
    */
   private readonly _handleDisconnect = (): void => {
+    void chrome.runtime.lastError;
+    this._store.markCaptureGap();
     this._cleanupPort();
     this._scheduleReconnect();
   };
@@ -168,7 +241,9 @@ export class ActionsBridgeService implements OnDestroy {
    * Schedules a reconnect.
    */
   private _scheduleReconnect(): void {
-    if (this._reconnectTimer || this._destroyed) return;
+    if (this._reconnectTimer || this._destroyed || !this._visible) return;
+
+    this._connectionStatus.set('reconnecting');
 
     this._reconnectTimer = setTimeout((): void => {
       this._reconnectTimer = null;
