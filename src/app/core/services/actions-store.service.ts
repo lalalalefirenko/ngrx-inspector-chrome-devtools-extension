@@ -2,6 +2,7 @@ import {
   computed,
   inject,
   Injectable,
+  OnDestroy,
   signal,
   Signal,
   WritableSignal,
@@ -11,16 +12,7 @@ import { Nullable } from '../types/nullable.type';
 import { SettingsStoreService } from './settings-store.service';
 import { ActionFilter } from '../models/filter.model';
 import { containsSearchWords, normalize } from '../utils/string.utils';
-
-/**
- * Interface for configuring timers that clear highlights for new NgRx actions.
- */
-interface HighlightTimer {
-  /** Timer identifier */
-  id: ReturnType<typeof setTimeout>;
-  /** ID of the action for which the timer is set */
-  actionId: number;
-}
+import { SelectedActionContext } from '../models/selected-action-context.model';
 
 /**
  * Store service for managing NgRx action history.
@@ -29,7 +21,7 @@ interface HighlightTimer {
 @Injectable({
   providedIn: 'root',
 })
-export class ActionsStore {
+export class ActionsStore implements OnDestroy {
   //region Fields
 
   /**
@@ -44,9 +36,9 @@ export class ActionsStore {
     inject(SettingsStoreService);
 
   /**
-   * Signal storing the ID of the selected action.
+   * Records retained for inspection until selection changes or the session clears.
    */
-  private readonly _selectedId: WritableSignal<Nullable<number>> = signal(null);
+  private readonly _selection: WritableSignal<SelectedActionContext | undefined> = signal(undefined);
 
   /**
    * Path to the pinned node in the state.
@@ -60,10 +52,10 @@ export class ActionsStore {
    */
   private readonly _newIdsSig: WritableSignal<ReadonlySet<number>> = signal(new Set<number>());
 
-  /**
-   * Array of active timers for clearing highlights of new NgRx actions.
-   */
-  private readonly _highlightTimers: HighlightTimer[] = [];
+  /** Deadlines retain IDs only, bounded by the records still in history. */
+  private readonly _highlightExpiries = new Map<number, number>();
+
+  private _highlightTimer: ReturnType<typeof setTimeout> | undefined;
 
   //endregion
   //region Constants
@@ -77,6 +69,9 @@ export class ActionsStore {
    * Duration of new action highlight in milliseconds.
    */
   private readonly NEW_DURATION: number = 2300;
+
+  /** Coalesce nearby expirations without polling while the list is idle. */
+  private readonly HIGHLIGHT_BATCH_DELAY: number = 50;
 
   /**
    * Number of latest NgRx actions displayed in the virtual list.
@@ -111,19 +106,14 @@ export class ActionsStore {
    * Signal containing information about the selected action.
    */
   readonly selectedAction: Signal<Nullable<NgrxActionRecord>> = computed(
-    (): Nullable<NgrxActionRecord> =>
-      this.filteredActions().find(
-        (action: NgrxActionRecord): boolean => action.id === this._selectedId(),
-      ),
+    () => this._selection()?.action,
   );
 
   /**
-   * Signal containing the index of the selected action in the list.
+   * The predecessor captured at selection time, even if history later evicts it.
    */
-  readonly selectedActionIndex: Signal<number> = computed((): number =>
-    this.filteredActions().findIndex(
-      (action: NgrxActionRecord): boolean => action.id === this._selectedId(),
-    ),
+  readonly selectedPreviousAction: Signal<Nullable<NgrxActionRecord>> = computed(
+    () => this._selection()?.previousAction,
   );
 
   /**
@@ -170,6 +160,16 @@ export class ActionsStore {
         .slice(-this.VISIBLE_ACTIONS_LIMIT),
   );
 
+  /** Selected record displayed separately when it is outside the current list. */
+  readonly retainedSelectedAction: Signal<Nullable<NgrxActionRecord>> = computed(() => {
+    const selected = this.selectedAction();
+    return selected && !this.visibleActions().includes(selected) ? selected : undefined;
+  });
+
+  readonly latestVisibleAction: Signal<Nullable<NgrxActionRecord>> = computed(
+    () => this.visibleActions().at(-1),
+  );
+
   //endregion
   //region Public Methods
 
@@ -182,34 +182,18 @@ export class ActionsStore {
    * @param action NgRx action record to add
    */
   add(action: NgrxActionRecord): void {
-    this._actionsSig.update((list: NgrxActionRecord[]): NgrxActionRecord[] => {
-      const newList: NgrxActionRecord[] = [...list, action];
+    const list = this._actionsSig();
+    const evicted = list.length >= this.MAX_ACTIONS ? list[0] : undefined;
+    const next = evicted ? list.slice(1) : list.slice();
+    next.push(action);
+    this._actionsSig.set(next);
 
-      if (newList.length > this.MAX_ACTIONS) {
-        newList.splice(0, newList.length - this.MAX_ACTIONS);
-      }
-
-      return newList;
-    });
-
-    // Mark the new action for highlighting
-    this._newIdsSig.update((set) => new Set([...set, action.id]));
-
-    // Set a timer to remove the highlight
-    const timerId: ReturnType<typeof setTimeout> = setTimeout((): void => {
-      this._newIdsSig.update((set) => {
-        const next = new Set(set);
-        next.delete(action.id);
-        return next;
-      });
-      this._removeHighlightTimer(action.id);
-    }, this.NEW_DURATION);
-
-    // Store the timer for possible cleanup
-    this._highlightTimers.push({
-      id: timerId,
-      actionId: action.id,
-    });
+    if (evicted && !next.some(record => record.id === evicted.id)) {
+      this._highlightExpiries.delete(evicted.id);
+    }
+    this._highlightExpiries.set(action.id, Date.now() + this.NEW_DURATION);
+    this._newIdsSig.set(new Set(this._highlightExpiries.keys()));
+    this._scheduleHighlightExpiry();
   }
 
   /**
@@ -218,12 +202,19 @@ export class ActionsStore {
    * @param id ID of the action to select
    */
   select(id: number): void {
-    this._selectedId.set(id);
+    const actions = this._actionsSig();
+    const index = actions.findIndex(action => action.id === id && !action.isMeta);
+    if (index < 0 || this.selectedAction() === actions[index]) return;
+
+    this._selection.set({
+      action: actions[index],
+      previousAction: index > 0 ? actions[index - 1] : undefined,
+    });
   }
 
   /**
-   * Clears the entire store: removes all actions, clears selection,
-   * clears the set of new IDs, and cancels all active highlight timers.
+   * Clears visible history while preserving the last snapshot as a diff baseline.
+   * Also clears selection, search, pins and highlight timers.
    */
   clear(): void {
     if (this._actionsSig().length > 0) {
@@ -232,10 +223,20 @@ export class ActionsStore {
       this._actionsSig.set([]);
     }
 
-    this._selectedId.set(null);
+    this._selection.set(undefined);
     this.searchValue.set('');
     this.unpinNode();
     this._newIdsSig.set(new Set());
+    this._clearAllHighlightTimers();
+  }
+
+  /** Starts a new page session without retaining a previous state snapshot. */
+  reset(): void {
+    this._actionsSig.set([]);
+    this.clear();
+  }
+
+  ngOnDestroy(): void {
     this._clearAllHighlightTimers();
   }
 
@@ -258,36 +259,35 @@ export class ActionsStore {
   //endregion
   //region Private Methods
 
-  /**
-   * Removes the highlight timer for a given action.
-   *
-   * @param actionId ID of the action whose timer should be removed
-   *
-   * @private
-   */
-  private _removeHighlightTimer(actionId: number): void {
-    const timerIndex: number = this._highlightTimers.findIndex(
-      (timer: HighlightTimer): boolean => timer.actionId === actionId,
-    );
+  /** One scheduler expires highlights without closing over snapshots. */
+  private _scheduleHighlightExpiry(): void {
+    if (this._highlightTimer !== undefined || !this._highlightExpiries.size) return;
 
-    if (timerIndex !== -1) {
-      const [removedTimer]: HighlightTimer[] = this._highlightTimers.splice(
-        timerIndex,
-        1,
-      );
-      clearTimeout(removedTimer.id);
-    }
+    const nextExpiry = Math.min(...this._highlightExpiries.values());
+    const delay = Math.max(nextExpiry - Date.now(), this.HIGHLIGHT_BATCH_DELAY);
+
+    this._highlightTimer = setTimeout(() => {
+      this._highlightTimer = undefined;
+      const now = Date.now();
+      let changed = false;
+      for (const [id, expiry] of this._highlightExpiries) {
+        if (expiry <= now) {
+          this._highlightExpiries.delete(id);
+          changed = true;
+        }
+      }
+      if (changed) this._newIdsSig.set(new Set(this._highlightExpiries.keys()));
+      this._scheduleHighlightExpiry();
+    }, delay);
   }
 
   /**
    * Clears all active highlight timers.
    */
   private _clearAllHighlightTimers(): void {
-    this._highlightTimers.forEach((timer: HighlightTimer): void => {
-      clearTimeout(timer.id);
-    });
-
-    this._highlightTimers.length = 0; // Clear array
+    clearTimeout(this._highlightTimer);
+    this._highlightTimer = undefined;
+    this._highlightExpiries.clear();
   }
 
   /**

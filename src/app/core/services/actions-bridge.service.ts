@@ -3,7 +3,7 @@ import { inject, Injectable, NgZone, OnDestroy } from '@angular/core';
 import { ActionsStore } from './actions-store.service';
 import { isDevToolsEnv } from '../utils/dev-mode.utils';
 import { Nullable } from '../types/nullable.type';
-import { RuntimeMessage } from '../models/chrome-runtime-message.model';
+import { isNgrxActionMessage } from '../utils/action-record.utils';
 
 /**
  * Bridge service between the DevTools extension panel and the inspected page.
@@ -46,12 +46,14 @@ export class ActionsBridgeService implements OnDestroy {
   /**
    * Active connection to the Chrome runtime port.
    */
-  private _port: Nullable<chrome.runtime.Port>;
+  private _port: Nullable<chrome.runtime.Port> = null;
 
   /**
    * Reconnect timer.
    */
-  private _reconnectTimer: Nullable<ReturnType<typeof setTimeout>>;
+  private _reconnectTimer: Nullable<ReturnType<typeof setTimeout>> = null;
+
+  private _destroyed = false;
 
   /**
    * Mock mode timers.
@@ -63,7 +65,7 @@ export class ActionsBridgeService implements OnDestroy {
    * Stored as a reference for correct removeListener.
    */
   private readonly _onNavigatedHandler = (): void => {
-    this._zone.run(() => this._store.clear());
+    this._zone.run(() => this._store.reset());
   };
 
   //endregion
@@ -71,6 +73,7 @@ export class ActionsBridgeService implements OnDestroy {
   //region Constructor
   constructor() {
     if (isDevToolsEnv()) {
+      chrome.devtools.network.onNavigated.addListener(this._onNavigatedHandler);
       this._connect();
     } else {
       this._initMockMode();
@@ -87,12 +90,13 @@ export class ActionsBridgeService implements OnDestroy {
    * (e.g., when the DevTools panel is closed).
    */
   ngOnDestroy(): void {
+    this._destroyed = true;
     this._cleanupPort();
     this._cleanupTimers();
 
-    chrome?.devtools?.network?.onNavigated?.removeListener(
-      this._onNavigatedHandler,
-    );
+    if (typeof chrome !== 'undefined') {
+      chrome.devtools?.network?.onNavigated?.removeListener(this._onNavigatedHandler);
+    }
   }
 
   //endregion
@@ -102,10 +106,13 @@ export class ActionsBridgeService implements OnDestroy {
    * Establishes a connection with the Chrome runtime.
    */
   private _connect(): void {
-    if (this._port) return;
+    if (this._port || this._destroyed) return;
 
     try {
       this._port = chrome.runtime.connect({ name: ActionsBridgeService.PORT_NAME });
+
+      this._port.onMessage.addListener(this._handleMessage);
+      this._port.onDisconnect.addListener(this._handleDisconnect);
 
       const tabId: number = chrome.devtools.inspectedWindow.tabId;
 
@@ -113,12 +120,8 @@ export class ActionsBridgeService implements OnDestroy {
         type: 'INIT',
         tabId,
       });
-
-      this._port.onMessage.addListener(this._handleMessage);
-      this._port.onDisconnect.addListener(this._handleDisconnect);
-
-      chrome.devtools.network.onNavigated.addListener(this._onNavigatedHandler);
     } catch {
+      this._cleanupPort();
       this._scheduleReconnect();
     }
   }
@@ -127,13 +130,17 @@ export class ActionsBridgeService implements OnDestroy {
    * Completely cleans up the current connection.
    */
   private _cleanupPort(): void {
-    if (!this._port) return;
-
-    this._port.onMessage.removeListener(this._handleMessage);
-    this._port.onDisconnect.removeListener(this._handleDisconnect);
-    this._port.disconnect();
-
+    const port = this._port;
     this._port = null;
+    if (!port) return;
+
+    port.onMessage.removeListener(this._handleMessage);
+    port.onDisconnect.removeListener(this._handleDisconnect);
+    try {
+      port.disconnect();
+    } catch {
+      // The port can already be disconnected when INIT or the worker fails.
+    }
   }
 
   // Message Handling
@@ -142,9 +149,9 @@ export class ActionsBridgeService implements OnDestroy {
    * Handler for incoming messages from the runtime port.
    */
   private readonly _handleMessage = (
-    msg: RuntimeMessage<NgrxActionRecord>,
+    msg: unknown,
   ): void => {
-    if (msg.type !== 'NGRX_ACTION') return;
+    if (this._destroyed || !isNgrxActionMessage(msg)) return;
 
     this._zone.run(() => this._store.add(msg.payload));
   };
@@ -161,7 +168,7 @@ export class ActionsBridgeService implements OnDestroy {
    * Schedules a reconnect.
    */
   private _scheduleReconnect(): void {
-    if (this._reconnectTimer) return;
+    if (this._reconnectTimer || this._destroyed) return;
 
     this._reconnectTimer = setTimeout((): void => {
       this._reconnectTimer = null;
@@ -180,6 +187,7 @@ export class ActionsBridgeService implements OnDestroy {
    */
   private _initMockMode(): void {
     import('../mocks/actions.mock').then(({ generateMockActions }) => {
+      if (this._destroyed) return;
       const actions: NgrxActionRecord[] = generateMockActions();
 
       actions.forEach((action: NgrxActionRecord, index: number) => {

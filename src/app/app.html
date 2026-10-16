@@ -13,11 +13,24 @@
       <app-settings (close)="closeSettings()" />
     }
 
-    <button class="floating-btn settings-btn" (click)="toggleSettings()">
-      <settings-svg></settings-svg>
+    <button
+      type="button"
+      class="tool-button tool-button--icon floating-btn settings-btn"
+      title="Settings"
+      aria-label="Settings"
+      [attr.aria-expanded]="isSettingsOpened()"
+      (click)="toggleSettings()"
+    >
+      <settings-svg width="18px" height="18px" fill="currentColor" aria-hidden="true" />
     </button>
-    <button class="floating-btn clear-btn" (click)="clearActionsData()">
-      <clear-all-svg></clear-all-svg>
+    <button
+      type="button"
+      class="tool-button tool-button--icon tool-button--danger floating-btn clear-btn"
+      title="Clear history"
+      aria-label="Clear history"
+      (click)="clearActionsData()"
+    >
+      <clear-all-svg width="18px" height="18px" fill="currentColor" aria-hidden="true" />
     </button>
   </main>
 </div>

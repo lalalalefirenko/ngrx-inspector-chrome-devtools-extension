@@ -61,6 +61,10 @@ export class ActionDetailsComponent {
   protected readonly selectedAction: Signal<Nullable<NgrxActionRecord>> =
     this._store.selectedAction;
 
+  protected readonly selectedPreviousAction = this._store.selectedPreviousAction;
+
+  protected readonly retainedSelectedAction = this._store.retainedSelectedAction;
+
   /**
    * Path to the pinned node in the state.
    */

@@ -18,7 +18,7 @@
       }
     }
 
-    @if (!node().children) {
+    @if (!node().children?.length) {
       <span class="value">{{ formattedNodeValue() }}</span>
     } @else if (collapsed()) {
       <span class="preview">

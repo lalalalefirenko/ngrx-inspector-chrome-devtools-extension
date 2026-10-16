@@ -8,7 +8,9 @@
 }
 
 aside {
-  width: 25rem;
+  display: flex;
+  flex-direction: column;
+  width: min(25rem, 40%);
   min-width: 15.625rem;
   max-width: 50rem;
   resize: horizontal;
@@ -16,6 +18,7 @@ aside {
   border-right: 0.0625rem solid vars.$border-strong;
 
   .filter {
+    flex-shrink: 0;
     padding: 0.5rem;
     width: 100%;
     box-sizing: border-box;
@@ -33,47 +36,16 @@ main {
   overflow: auto;
 
   .floating-btn {
-    @include mixins.flex-center;
-    @include mixins.clickable;
-
-    justify-content: center;
-
     position: fixed;
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 50%;
-    border: none;
-    color: #fff;
-    font-size: 1.5rem;
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
+    bottom: vars.$space-6;
     z-index: 1000;
-
-    &:hover {
-      transform: translateY(-0.125rem);
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
   }
 
   .clear-btn {
-    left: vars.$space-10;
-    bottom: vars.$space-10;
-    background: vars.$danger;
-
-    &:hover {
-      background: vars.$danger-hover;
-    }
+    left: vars.$space-6;
   }
 
   .settings-btn {
-    right: vars.$space-10;
-    bottom: vars.$space-10;
-    background: vars.$primary;
-
-    &:hover {
-      background: vars.$primary-hover;
-    }
+    right: vars.$space-6;
   }
 }

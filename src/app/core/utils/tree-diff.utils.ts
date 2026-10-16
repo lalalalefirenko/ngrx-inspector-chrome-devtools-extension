@@ -1,5 +1,4 @@
 import { StateTreeDiffNode } from '../models/tree-diff-node.model';
-import { isNullOrUndefined } from './object.utils';
 
 /**
  * Groups a diff tree by features (first-level nodes).
@@ -11,7 +10,9 @@ import { isNullOrUndefined } from './object.utils';
 export function groupTreeDiffByFeature(
   root: StateTreeDiffNode,
 ): StateTreeDiffNode[] {
-  if (!root.children?.length) return [];
+  if (!root.children?.length) {
+    return root.kind === 'unchanged' ? [] : [{ ...root, isRoot: true }];
+  }
 
   return root.children
     .filter(
@@ -41,9 +42,9 @@ export function computeStateTreeDiff(
 ): StateTreeDiffNode | null {
   if (prev === curr) return null;
 
-  if (isNullOrUndefined(prev) && !isNullOrUndefined(curr))
+  if (prev === undefined)
     return { key, kind: 'added', after: curr };
-  if (!isNullOrUndefined(prev) && isNullOrUndefined(curr))
+  if (curr === undefined)
     return { key, kind: 'removed', before: prev };
 
   if (Array.isArray(prev) && Array.isArray(curr))

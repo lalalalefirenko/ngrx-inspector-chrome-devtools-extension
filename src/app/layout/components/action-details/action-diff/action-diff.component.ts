@@ -2,14 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  inject,
   input,
   InputSignal,
   Signal,
 } from '@angular/core';
 import { NgrxActionRecord } from '../../../../core/models/ngrx-action-record.model';
 import { StateTreeDiffNode } from '../../../../core/models/tree-diff-node.model';
-import { ActionsStore } from '../../../../core/services/actions-store.service';
 import {
   computeStateTreeDiff,
   groupTreeDiffByFeature,
@@ -38,34 +36,26 @@ export class ActionDiffComponent {
   readonly action: InputSignal<NgrxActionRecord> = input.required();
 
   //endregion
-  //region DI
+  /** Previous record captured together with the selected action. */
+  readonly previousAction: InputSignal<Nullable<NgrxActionRecord>> = input.required();
 
-  /**
-   * NgRx actions store.
-   */
-  private readonly _store: ActionsStore = inject(ActionsStore);
-
-  //endregion
   //region Fields
+
+  readonly hasPreviousState: Signal<boolean> = computed(() => !!this.previousAction());
 
   /**
    * List of diff nodes grouped by feature (top-level state keys).
-   * Returns an empty array if there is no previous state or states are identical.
+   * Uses the captured predecessor so incoming events cannot change the comparison.
    */
   readonly features: Signal<StateTreeDiffNode[]> = computed(
     (): StateTreeDiffNode[] => {
       const currentAction: NgrxActionRecord = this.action();
 
-      const actions: NgrxActionRecord[] = this._store.filteredActions();
-      const index: number = this._store.selectedActionIndex();
+      const previousAction = this.previousAction();
+      if (!previousAction) return [];
 
-      if (index <= 0) return [];
-
-      const prevState: unknown = actions[index - 1]?.state;
+      const prevState: unknown = previousAction.state;
       const currState: unknown = currentAction.state;
-
-      if (prevState === null || prevState === undefined) return [];
-      if (currState === null || currState === undefined) return [];
 
       if (prevState === currState) return [];
 

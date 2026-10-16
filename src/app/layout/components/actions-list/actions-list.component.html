@@ -1,13 +1,56 @@
 <div class="list">
+  @if (retainedSelectedAction(); as action) {
+    <div class="retained-selection" aria-live="polite">
+      <span class="retained-label">Selected action</span>
+      <button
+        type="button"
+        class="retained-action"
+        [title]="action.type"
+        (click)="actionClicked.emit()"
+      >
+        <span class="action-type">{{ action.type }}</span>
+        <span class="retained-note">#{{ action.id }} · Outside current list</span>
+      </button>
+    </div>
+  }
+
   <cdk-virtual-scroll-viewport itemSize="30" class="actions-viewport">
-    <div
-      *cdkVirtualFor="let action of visibleActions(); trackBy: trackById"
+    <button
+      type="button"
+      *cdkVirtualFor="let action of visibleRows(); trackBy: trackById"
       class="row"
-      [class.active]="selectedAction()?.id === action.id"
+      [class.active]="selectedRow() === action"
       [class.new]="newIds().has(action.id)"
       (click)="actionClickHandler(action)"
+      [title]="action.type"
+      [attr.aria-pressed]="selectedRow() === action"
     >
-      {{ action.type }}
-    </div>
+      <span class="action-type">{{ action.type }}</span>
+    </button>
   </cdk-virtual-scroll-viewport>
+
+  <div class="actions-footer">
+    <button
+      type="button"
+      class="tool-button tool-button--accent latest-action"
+      [disabled]="!latestVisibleAction()"
+      (click)="selectLatestAction()"
+    >
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d="M12 3v13m-5-5 5 5 5-5M5 21h14" />
+      </svg>
+      Latest action
+    </button>
+  </div>
 </div>

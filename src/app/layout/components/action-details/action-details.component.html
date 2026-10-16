@@ -1,4 +1,12 @@
 @if (canDisplayDetails() && selectedAction(); as action) {
+  <header class="selected-action-header">
+    <strong class="selected-action-type" [title]="action.type">{{ action.type }}</strong>
+    <span class="selected-action-id">#{{ action.id }}</span>
+    @if (retainedSelectedAction()) {
+      <span class="selection-status">Outside current list</span>
+    }
+  </header>
+
   <action-details-tabs
     [activeTab]="currentTab()"
     (tabChange)="currentTab.set($event)"
@@ -19,7 +27,7 @@
         />
       }
       @case ("diff") {
-        <action-diff [action]="action" />
+        <action-diff [action]="action" [previousAction]="selectedPreviousAction()" />
       }
     }
   </div>

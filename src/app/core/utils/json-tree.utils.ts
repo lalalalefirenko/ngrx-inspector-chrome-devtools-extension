@@ -18,7 +18,7 @@ export function buildJsonTree(
   parentPath: string[] = [],
   isForPinnableNode: boolean = false,
 ): JsonTreeNode {
-  const path: string[] = isRoot ? [] : [...parentPath, normalizeKey(key)];
+  const path: string[] = isRoot ? [] : [...parentPath, key];
 
   if (value === null || value === undefined) {
     return { key, value, isRoot, isPinnable: true, path };
@@ -32,6 +32,7 @@ export function buildJsonTree(
     return {
       key,
       path,
+      containerType: 'array',
       children: value.map((v, i) =>
         buildJsonTree(v, i.toString(), false, path),
       ),
@@ -49,6 +50,7 @@ export function buildJsonTree(
       isRoot,
       key: '',
       children,
+      containerType: 'object',
       path: [],
       isPinnable: false,
     };
@@ -58,24 +60,9 @@ export function buildJsonTree(
     isRoot,
     key,
     children,
+    containerType: 'object',
     isPinnable: !isForPinnableNode,
     path,
     isPinned: isForPinnableNode,
   };
-}
-
-/**
- * Normalizes a key for path.
- *
- * "[3]" -> "3"
- *
- * @param key The key to normalize.
- * @returns The normalized key.
- */
-function normalizeKey(key: string): string {
-  if (key.startsWith('[') && key.endsWith(']')) {
-    return key.slice(1, -1);
-  }
-
-  return key;
 }

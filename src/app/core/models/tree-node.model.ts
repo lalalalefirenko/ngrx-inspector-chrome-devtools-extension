@@ -12,6 +12,9 @@ export interface TreeNode<T> {
    */
   children?: T[];
 
+  /** Container type, including containers with no children. */
+  containerType?: 'array' | 'object';
+
   /**
    * Is this the root node?
    */

@@ -68,9 +68,13 @@ export class JsonTreeComponent {
   /**
    * Formatted value of the current tree node (if it has no child nodes).
    */
-  readonly formattedNodeValue: Signal<string> = computed((): string =>
-    this._format(this.node().value),
-  );
+  readonly formattedNodeValue: Signal<string> = computed((): string => {
+    const node = this.node();
+    if (node.children?.length === 0) {
+      return node.containerType === 'array' ? '[]' : '{}';
+    }
+    return this._format(node.value);
+  });
 
   //endregion
   //region Events
