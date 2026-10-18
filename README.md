@@ -15,6 +15,15 @@ Designed as a simple, fast, and NgRx-native alternative to Redux DevTools.
 - Pinnable paths in the state tree
 - Bounded history with a virtualized action list
 
+State and payload trees build nested nodes when expanded. Pinning a state path
+resolves that branch directly without building unrelated parts of the tree.
+
+Array diffs match objects by unique own `id` properties (nonempty strings or finite
+numbers). They show additions, removals and moves with indices; normal index
+shifts after insertions or removals are not reported as moves. Changed fields
+remain expandable. Numeric and string IDs are distinct. Primitive arrays and
+arrays with missing, invalid or duplicate IDs are compared by index.
+
 Selecting an action keeps its payload, state and diff available while new actions
 arrive, filters change or older records leave the history. If the selected action
 is outside the current list, it appears in a separate row. Click **Latest action**
@@ -26,6 +35,12 @@ or reconnecting. Capture pauses when you switch to another DevTools panel or
 close DevTools. Existing history and selection stay available when switching
 panels; reopening captures future events without replaying events from the pause.
 The first action after a capture interruption has no diff baseline.
+
+The toolbar icon has a gray background until NgRx is detected on that tab, then
+switches to a lime green background. The magnifying glass and the letter A remain
+dark charcoal in both states.
+Detection stays green while the inspector panel is hidden; navigating to another
+page resets the icon until NgRx is detected there. The tooltip also names the state.
 
 This stops forwarding snapshots from the content script to the worker. The
 application bridge still sends its existing page messages; no application changes
@@ -149,7 +164,39 @@ npm run test:ci
 ```
 
 Run Angular tests interactively with `npm test`, or Chrome script tests separately
-with `npm run test:extension`. Chrome APIs are simulated in the automated tests.
+with `npm run test:extension`. These unit tests simulate Chrome APIs.
+
+Browser regression tests run against a production build in installed Google
+Chrome, using Node's built-in test runner and Chrome DevTools Protocol:
+
+```bash
+npm run build:prod
+npm run test:browser
+```
+
+The browser suites cover inspection, settings and narrow layouts, lazy trees,
+array diffs, bounded snapshot retention, and real extension runtime/tabs ports.
+The UI fixtures simulate Chrome APIs to control events. The transport suite loads
+a temporary copy of the unpacked extension; it injects an inspected-tab facade
+and fault probes while using production content/worker code and real ports.
+DevTools visibility events themselves are covered by the Chrome-script tests.
+
+Use a recent Google Chrome that supports `Extensions.loadUnpacked`. Set `CHROME_BIN` to
+the browser executable if it is not at its standard location. Tests create fresh
+temporary profiles and remove them on completion. On Linux environments that
+cannot run Chrome's sandbox, set `CHROME_NO_SANDBOX=1`. Screenshots and the memory
+report are saved in `test-results/browser/` (or `BROWSER_ARTIFACT_DIR`). Memory
+checks assert retained snapshot counts, without machine-specific timing limits.
+
+Run all checks, including the production build and browser suites:
+
+```bash
+npm run check
+```
+
+GitHub Actions runs the same command on pushes and pull requests, using Node 24
+and Chrome on Ubuntu, and uploads browser diagnostics. It does not publish the
+extension.
 
 Check TypeScript, HTML templates and extension scripts:
 

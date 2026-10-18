@@ -1,7 +1,7 @@
 <div class="node">
   <div class="node-header" (click)="toggle()">
     <span class="collapse-indicator">
-      @if (node().children?.length && !node().isRoot) {
+      @if (hasChildren() && !node().isRoot) {
         {{ collapsed() ? "+" : "-" }}
       }
     </span>
@@ -18,7 +18,7 @@
       }
     }
 
-    @if (!node().children?.length) {
+    @if (!hasChildren()) {
       <span class="value">{{ formattedNodeValue() }}</span>
     } @else if (collapsed()) {
       <span class="preview">
@@ -27,9 +27,9 @@
     }
   </div>
 
-  @if (node().children && !collapsed()) {
+  @if (hasChildren() && !collapsed()) {
     <div class="children">
-      @for (child of node().children; track child.key) {
+      @for (child of children(); track child.key) {
         <json-tree
           [node]="child"
           [isPinningEnabled]="isPinningEnabled()"

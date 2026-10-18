@@ -16,6 +16,23 @@
   color: vars.$primary;
 }
 
+.item-change {
+  color: vars.$text-soft;
+  font-size: 0.75rem;
+}
+
+.item-change--added {
+  color: vars.$success;
+}
+
+.item-change--removed {
+  color: vars.$danger-hover;
+}
+
+.item-move {
+  color: vars.$primary;
+}
+
 .children {
   margin-left: vars.$space-8;
   padding-left: vars.$space-4;

@@ -4,6 +4,69 @@ import { buildJsonTree } from '../../../core/utils/json-tree.utils';
 import { JsonTreeComponent } from './json-tree.component';
 
 describe('JsonTreeComponent', () => {
+  it('reads only the expanded level and leaves deeper collapsed branches untouched', () => {
+    const readBranch = vi.fn(() => ({
+      get value() {
+        return readLeaf();
+      },
+    }));
+    const readLeaf = vi.fn(() => 42);
+    const fixture = TestBed.createComponent(JsonTreeComponent);
+    fixture.componentRef.setInput(
+      'node',
+      buildJsonTree({
+        feature: {
+          get nested() {
+            return readBranch();
+          },
+        },
+      }),
+    );
+    fixture.detectChanges();
+
+    expect(readBranch).not.toHaveBeenCalled();
+    expect(readLeaf).not.toHaveBeenCalled();
+
+    fixture.nativeElement.querySelector('json-tree .node-header').click();
+    fixture.detectChanges();
+    expect(readBranch).toHaveBeenCalledOnce();
+    expect(readLeaf).not.toHaveBeenCalled();
+
+    fixture.nativeElement
+      .querySelector('json-tree json-tree .node-header')
+      .click();
+    fixture.detectChanges();
+    expect(readLeaf).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.textContent).toContain('42');
+  });
+
+  it('resets expanded branches when the snapshot changes', () => {
+    const fixture = TestBed.createComponent(JsonTreeComponent);
+    fixture.componentRef.setInput(
+      'node',
+      buildJsonTree({ feature: { old: 1 } }),
+    );
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('json-tree .node-header').click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('old');
+
+    fixture.componentRef.setInput(
+      'node',
+      buildJsonTree({ feature: { next: 2 } }),
+    );
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('old');
+    expect(
+      fixture.nativeElement.querySelector('json-tree .preview'),
+    ).not.toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('next');
+
+    fixture.nativeElement.querySelector('json-tree .node-header').click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('next');
+  });
+
   it.each([
     { value: [], expected: '[]' },
     { value: {}, expected: '{}' },

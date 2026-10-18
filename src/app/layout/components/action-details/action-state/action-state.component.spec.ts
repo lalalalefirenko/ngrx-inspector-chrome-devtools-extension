@@ -35,6 +35,50 @@ describe('ActionStateComponent pinned paths', () => {
     expect(fixture.nativeElement.querySelector('[role="status"]')).toBeNull();
   });
 
+  it('resolves a pin without reading unrelated state or collapsed descendants', () => {
+    const readUnrelated = vi.fn(() => ({ large: [1, 2, 3] }));
+    const readDescendant = vi.fn(() => 'not expanded');
+    render({
+      user: {
+        profile: {
+          details: {
+            get hidden() {
+              return readDescendant();
+            },
+          },
+        },
+      },
+      get unrelated() {
+        return readUnrelated();
+      },
+    });
+
+    expect(readUnrelated).not.toHaveBeenCalled();
+    expect(readDescendant).not.toHaveBeenCalled();
+    expect(
+      fixture.nativeElement.querySelector('json-tree').textContent,
+    ).toContain('details');
+    expect(
+      fixture.nativeElement.querySelector('json-tree').textContent,
+    ).not.toContain('unrelated');
+  });
+
+  it('preserves literal keys and full paths inside a pinned subtree', () => {
+    const pin = vi.fn();
+    fixture.componentInstance.pinNode.subscribe(pin);
+    render({ '[users]': [{ 'first.name': { value: 'Ada' } }] }, [
+      'Store',
+      '[users]',
+      '0',
+    ]);
+    fixture.nativeElement.querySelector('.pin-button').click();
+
+    expect(pin).toHaveBeenCalledWith(['[users]', '0', 'first.name']);
+    expect(
+      fixture.nativeElement.querySelector('json-tree').textContent,
+    ).toContain('first.name');
+  });
+
   it('shows a missing-path message without falling back to the full state or releasing the pin', () => {
     render({ user: null, unrelated: 'Other state' });
 

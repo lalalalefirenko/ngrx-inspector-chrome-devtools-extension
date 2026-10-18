@@ -1,0 +1,27 @@
+{
+  "tool": "built-in image_gen.imagegen",
+  "intent": "Swap state-icon foreground and background: dark magnifying glass and A on a lime green active background or gray inactive background.",
+  "transparent_background": false,
+  "prompts": {
+    "active": "Use case: precise-object-edit. Edit the attached state icon by SWAPPING THE FOREGROUND AND BACKGROUND COLORS only. Preserve the exact original silhouette and geometry: circular magnifying glass, its rim thickness and handle, uppercase Latin A shape and position, size, alignment, margins. The magnifying glass rim, handle, and letter A must all become the SAME solid dark charcoal #111827, matching the original dark background. Every negative-space region must become the new background color: the entire full-bleed square canvas, the lens interior around the A, and the triangular hole in the A. The new light-colored background continues uniformly through the lens interior and all the way to all four square edges. There must be no old dark background, dark outer tile, dark filled lens disk, borders, decorative elements or extra text. Flat clean opaque graphic, crisp edges, no gradients, glow, texture or shadows. ACTIVE icon: replace the original dark background with a uniform light lime green #4ADE80, the color of the original green magnifying glass. The result must be a dark magnifying glass and dark A on a light lime green background.",
+    "inactive": "Use case: precise-object-edit. Edit the attached state icon by SWAPPING THE FOREGROUND AND BACKGROUND COLORS only. Preserve the exact original silhouette and geometry: circular magnifying glass, its rim thickness and handle, uppercase Latin A shape and position, size, alignment, margins. The magnifying glass rim, handle, and letter A must all become the SAME solid dark charcoal #111827, matching the original dark background. Every negative-space region must become the new background color: the entire full-bleed square canvas, the lens interior around the A, and the triangular hole in the A. The new light-colored background continues uniformly through the lens interior and all the way to all four square edges. There must be no old dark background, dark outer tile, dark filled lens disk, borders, decorative elements or extra text. Flat clean opaque graphic, crisp edges, no gradients, glow, texture or shadows. INACTIVE icon: replace the original dark background with a uniform light gray #9CA3AF, the color of the original gray magnifying glass. The result must be a dark magnifying glass and dark A on a light gray background."
+  },
+  "exports": {
+    "inactive": "ngrx-inspector-logo-inactive.png",
+    "active": "ngrx-inspector-logo-active.png",
+    "canonical": "ngrx-inspector-logo.png (active)",
+    "sizes": [
+      16,
+      32,
+      48,
+      128
+    ],
+    "resize": "ImageMagick convert: -filter Lanczos -resize SIZExSIZE -strip PNG32:OUTPUT"
+  },
+  "revision": "2026-10-18",
+  "palette": {
+    "foreground": "#111827",
+    "active_background": "#4ADE80",
+    "inactive_background": "#9CA3AF"
+  }
+}

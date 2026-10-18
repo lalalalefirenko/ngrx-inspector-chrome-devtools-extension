@@ -23,4 +23,12 @@ export interface StateTreeDiffNode extends TreeNode<StateTreeDiffNode> {
    * State after the action occurred.
    */
   after?: unknown;
+
+  /** Stable array identity and positions; moved excludes ordinary insert/delete shifts. */
+  arrayItem?: {
+    id: string | number;
+    previousIndex?: number;
+    currentIndex?: number;
+    moved?: boolean;
+  };
 }

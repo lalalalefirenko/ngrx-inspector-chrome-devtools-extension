@@ -1,4 +1,5 @@
 import { StateTreeDiffNode } from '../models/tree-diff-node.model';
+import { diffArraysById } from './array-diff.utils';
 
 /**
  * Groups a diff tree by features (first-level nodes).
@@ -42,10 +43,8 @@ export function computeStateTreeDiff(
 ): StateTreeDiffNode | null {
   if (prev === curr) return null;
 
-  if (prev === undefined)
-    return { key, kind: 'added', after: curr };
-  if (curr === undefined)
-    return { key, kind: 'removed', before: prev };
+  if (prev === undefined) return { key, kind: 'added', after: curr };
+  if (curr === undefined) return { key, kind: 'removed', before: prev };
 
   if (Array.isArray(prev) && Array.isArray(curr))
     return diffArrays(prev, curr, key);
@@ -89,6 +88,9 @@ function diffArrays(
   curr: unknown[],
   key: string,
 ): StateTreeDiffNode | null {
+  const identified = diffArraysById(prev, curr, key, computeStateTreeDiff);
+  if (identified !== undefined) return identified;
+
   const children: StateTreeDiffNode[] = [];
   const max = Math.max(prev.length, curr.length);
 
@@ -115,7 +117,7 @@ function diffArrays(
 
   if (!children.length) return null;
 
-  return { key, kind: 'changed', children };
+  return { key, kind: 'changed', containerType: 'array', children };
 }
 
 /**
@@ -127,4 +129,3 @@ function diffArrays(
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-

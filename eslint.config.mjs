@@ -4,7 +4,14 @@ import angular from "angular-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["node_modules/**", "dist/**", ".angular/**", "coverage/**", "out-tsc/**"],
+    ignores: [
+      "node_modules/**",
+      "dist/**",
+      ".angular/**",
+      "coverage/**",
+      "out-tsc/**",
+      "test-results/**",
+    ],
   },
   {
     files: ["**/*.ts"],
@@ -16,7 +23,10 @@ export default tseslint.config(
     processor: angular.processInlineTemplates,
     rules: {
       "@angular-eslint/prefer-on-push-component-change-detection": "error",
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
     },
   },
   {
@@ -24,12 +34,27 @@ export default tseslint.config(
     extends: [...angular.configs.templateRecommended],
   },
   {
-    files: ["*.js", "*.mjs", "tests/**/*.cjs"],
+    files: ["*.js", "*.mjs", "tests/**/*.cjs", "tests/**/*.mjs"],
     extends: [eslint.configs.recommended],
     languageOptions: {
       globals: {
         chrome: "readonly",
         window: "readonly",
+      },
+    },
+  },
+  {
+    files: ["tests/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        process: "readonly",
+        Buffer: "readonly",
+        URL: "readonly",
+        WebSocket: "readonly",
+        fetch: "readonly",
+        AbortSignal: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
       },
     },
   },

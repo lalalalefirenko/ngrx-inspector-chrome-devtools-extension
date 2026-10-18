@@ -1,5 +1,25 @@
 const panelsByTabId = new Map();
 
+function setDetectionIcon(tabId, detected) {
+  const path = Object.fromEntries(
+    [16, 32, 48, 128].map((size) => [
+      size,
+      `icon${detected ? "_active" : ""}_${size}.png`,
+    ]),
+  );
+  try {
+    chrome.action.setIcon({ tabId, path }).catch(() => {});
+    chrome.action
+      .setTitle({
+        tabId,
+        title: `NgRx Inspector — NgRx ${detected ? "detected" : "not detected"}`,
+      })
+      .catch(() => {});
+  } catch {
+    // A tab can close while its content script is announcing detection.
+  }
+}
+
 function stopSource(connection) {
   const source = connection.source;
   connection.source = null;
@@ -40,6 +60,7 @@ function sendToPanel(connection, message) {
 function publishStatus(connection, status) {
   if (connection.status === status) return true;
   connection.status = status;
+  if (status === "connected") setDetectionIcon(connection.tabId, true);
   return sendToPanel(connection, { type: "CONNECTION_STATUS", status });
 }
 
@@ -64,6 +85,7 @@ function connectSource(connection) {
         typeof message.detected === "boolean"
       ) {
         sourceReady = true;
+        if (!message.detected) setDetectionIcon(connection.tabId, false);
         publishStatus(connection, message.detected ? "connected" : "waiting");
       } else if (message?.type === "NGRX_ACTION") {
         sourceReady = true;
@@ -119,14 +141,20 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   if (!Number.isInteger(sender.tab?.id) || sender.tab.id < 0) return;
   if (sender.frameId !== undefined && sender.frameId !== 0) return;
   const connection = panelsByTabId.get(sender.tab.id);
-  if (message?.type === "NGRX_CONTENT_READY" && connection) {
-    stopSource(connection);
-    publishStatus(connection, "waiting");
-    connectSource(connection);
+  if (message?.type === "NGRX_CONTENT_READY") {
+    setDetectionIcon(sender.tab.id, false);
+    if (connection) {
+      stopSource(connection);
+      publishStatus(connection, "waiting");
+      connectSource(connection);
+    }
   } else if (message?.type === "NGRX_DETECTED") {
-    chrome.action
-      .setIcon({ tabId: sender.tab.id, path: "icon_active_16.png" })
-      .catch(() => {});
+    setDetectionIcon(sender.tab.id, true);
     if (connection) connectSource(connection);
   }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  // Includes navigation to restricted pages where no content script can run.
+  if (changeInfo.status === "loading") setDetectionIcon(tabId, false);
 });

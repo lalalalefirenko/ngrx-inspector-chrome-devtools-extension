@@ -9,7 +9,10 @@ import {
   Signal,
 } from '@angular/core';
 import { NgrxActionRecord } from '../../../../core/models/ngrx-action-record.model';
-import { buildJsonTree } from '../../../../core/utils/json-tree.utils';
+import {
+  buildJsonTree,
+  buildPinnedJsonTree,
+} from '../../../../core/utils/json-tree.utils';
 import { JsonTreeComponent } from '../../json-tab/json-tree.component';
 import { JsonTreeNode } from '../../../../core/models/json-tree-node.model';
 import { Nullable } from '../../../../core/types/nullable.type';
@@ -39,13 +42,6 @@ export class ActionStateComponent {
    */
   readonly pinnedPath: InputSignal<Nullable<string[]>> = input.required();
 
-  /**
-   * The full JSON tree built from the entire state.
-   */
-  readonly fullTree: Signal<JsonTreeNode> = computed(
-    (): JsonTreeNode => buildJsonTree(this.action()?.state),
-  );
-
   //endregion
   //region Outputs
 
@@ -68,47 +64,16 @@ export class ActionStateComponent {
   //region Fields
 
   /**
-   * Returns the JsonTreeNode for the pinned path.
-   */
-  private readonly pinnedNode: Signal<Nullable<JsonTreeNode>> = computed(
-    (): Nullable<JsonTreeNode> => {
-      const path = this.pinnedPath();
-      const root = this.fullTree();
-
-      if (!path?.length) return null;
-
-      const pathExceptRoot: string[] = path.slice(1);
-
-      let current: Nullable<JsonTreeNode> = root;
-
-      for (const segment of pathExceptRoot) {
-        current = current?.children?.find(
-          (c: JsonTreeNode): boolean => String(c.key) === String(segment),
-        );
-
-        if (!current) return null;
-      }
-
-      /**
-       * IMPORTANT:
-       * We do NOT rebuild the node.
-       * We just make a shallow copy and turn it into root.
-       */
-      return {
-        ...current,
-        isRoot: true,
-        isPinned: true,
-        isPinnable: false,
-      };
-    },
-  );
-
-  /**
    * Tree to display, or null when the pinned path is absent in this snapshot.
    */
   readonly jsonTreeFromAction: Signal<Nullable<JsonTreeNode>> = computed(
-    (): Nullable<JsonTreeNode> =>
-      this.pinnedPath()?.length ? this.pinnedNode() : this.fullTree(),
+    (): Nullable<JsonTreeNode> => {
+      const path = this.pinnedPath();
+      const state = this.action().state;
+      return path?.length
+        ? buildPinnedJsonTree(state, path.slice(1))
+        : buildJsonTree(state);
+    },
   );
 
   //endregion

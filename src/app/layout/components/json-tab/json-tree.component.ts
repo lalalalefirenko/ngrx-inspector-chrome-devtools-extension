@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { JsonTreeNode } from '../../../core/models/json-tree-node.model';
 import { previewNodeValue } from '../../../core/utils/tree.utils';
+import { buildJsonTreeChildren } from '../../../core/utils/json-tree.utils';
 
 /**
  * Component for displaying data as a JSON tree with expandable/collapsible nodes.
@@ -56,7 +57,17 @@ export class JsonTreeComponent {
    * Whether the current node is collapsed.
    * Automatically resets when the node input changes (non-root nodes start collapsed).
    */
-  readonly collapsed: WritableSignal<boolean> = linkedSignal(() => !this.node().isRoot);
+  readonly collapsed: WritableSignal<boolean> = linkedSignal(
+    () => !this.node().isRoot,
+  );
+
+  readonly hasChildren = computed(() => this.node().childCount > 0);
+
+  /** Old child descriptors must not keep a replaced input node's snapshot alive. */
+  private readonly _childrenByNode = new WeakMap<
+    JsonTreeNode,
+    JsonTreeNode[]
+  >();
 
   /**
    * Preview of the collapsed value of the current tree node.
@@ -70,7 +81,7 @@ export class JsonTreeComponent {
    */
   readonly formattedNodeValue: Signal<string> = computed((): string => {
     const node = this.node();
-    if (node.children?.length === 0) {
+    if (node.containerType && node.childCount === 0) {
       return node.containerType === 'array' ? '[]' : '{}';
     }
     return this._format(node.value);
@@ -98,11 +109,22 @@ export class JsonTreeComponent {
   //endregion
   //region Public
 
+  /** Read only for expanded nodes; weak keys release previous snapshots after input changes. */
+  children(): JsonTreeNode[] {
+    const node = this.node();
+    let children = this._childrenByNode.get(node);
+    if (!children) {
+      children = buildJsonTreeChildren(node);
+      this._childrenByNode.set(node, children);
+    }
+    return children;
+  }
+
   /**
    * Toggles the collapsed/expanded state of the current node.
    */
   toggle(): void {
-    if (this.node()?.children?.length) {
+    if (this.hasChildren()) {
       this.collapsed.update((v: boolean): boolean => !v);
     }
   }

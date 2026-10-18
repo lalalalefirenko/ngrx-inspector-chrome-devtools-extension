@@ -74,15 +74,18 @@ function contentHarness(sendMessage) {
   };
 }
 
-function backgroundHarness(connectSource) {
+function backgroundHarness(connectSource, setIcon) {
   const onConnect = event();
   const onMessage = event();
+  const onUpdated = event();
   const sources = [];
   const icons = [];
+  const titles = [];
   vm.runInNewContext(script("background.js"), {
     chrome: {
       runtime: { onConnect, onMessage },
       tabs: {
+        onUpdated,
         connect: (tabId, options) => {
           const source = connectSource
             ? connectSource(tabId, options)
@@ -94,6 +97,10 @@ function backgroundHarness(connectSource) {
       action: {
         setIcon: (options) => {
           icons.push(options);
+          return setIcon ? setIcon(options) : Promise.resolve();
+        },
+        setTitle: (options) => {
+          titles.push(options);
           return Promise.resolve();
         },
       },
@@ -102,13 +109,32 @@ function backgroundHarness(connectSource) {
   return {
     onConnect,
     onMessage,
+    onUpdated,
     sources,
     icons,
+    titles,
     source: (tabId) => sources.findLast((item) => item.tabId === tabId)?.source,
   };
 }
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+test("both state icon sets have valid PNG dimensions and the toolbar defaults to gray", () => {
+  const manifest = JSON.parse(script("manifest.json"));
+  for (const size of [16, 32, 48, 128]) {
+    assert.equal(manifest.action.default_icon[size], `icon_${size}.png`);
+    assert.equal(manifest.icons[size], `icon_active_${size}.png`);
+    for (const prefix of ["icon", "icon_active"]) {
+      const filename = `${prefix}_${size}.png`;
+      const png = fs.readFileSync(
+        path.join(__dirname, "..", "src/assets/icons", filename),
+      );
+      assert.equal(png.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+      assert.equal(png.readUInt32BE(16), size, filename);
+      assert.equal(png.readUInt32BE(20), size, filename);
+    }
+  }
+});
 
 test("content script detects NgRx without forwarding snapshots while closed", () => {
   const harness = contentHarness();
@@ -431,7 +457,98 @@ test("detection without a panel sets the icon but never creates a source connect
   const harness = backgroundHarness();
   harness.onMessage.emit({ type: "NGRX_DETECTED" }, { tab: { id: 12 } });
   assert.equal(harness.icons.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.icons[0])), {
+    tabId: 12,
+    path: {
+      16: "icon_active_16.png",
+      32: "icon_active_32.png",
+      48: "icon_active_48.png",
+      128: "icon_active_128.png",
+    },
+  });
+  assert.match(harness.titles.at(-1).title, /NgRx detected/);
   assert.equal(harness.sources.length, 0);
+});
+
+test("a new document resets every icon size to gray even without an inspector panel", () => {
+  const harness = backgroundHarness();
+  const sender = { tab: { id: 12 }, frameId: 0 };
+  harness.onMessage.emit({ type: "NGRX_DETECTED" }, sender);
+  harness.onMessage.emit({ type: "NGRX_CONTENT_READY" }, sender);
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.icons.at(-1))), {
+    tabId: 12,
+    path: {
+      16: "icon_16.png",
+      32: "icon_32.png",
+      48: "icon_48.png",
+      128: "icon_128.png",
+    },
+  });
+  assert.match(harness.titles.at(-1).title, /not detected/);
+  assert.equal(harness.sources.length, 0);
+});
+
+test("navigation resets the tab icon before a new content script is available", () => {
+  const harness = backgroundHarness();
+  harness.onMessage.emit({ type: "NGRX_DETECTED" }, { tab: { id: 12 } });
+  harness.onUpdated.emit(12, { status: "loading" });
+  assert.equal(harness.icons.at(-1).path[16], "icon_16.png");
+  assert.equal(harness.icons.at(-1).tabId, 12);
+  const count = harness.icons.length;
+  harness.onUpdated.emit(12, { status: "complete" });
+  harness.onUpdated.emit(12, { title: "Same document" });
+  assert.equal(harness.icons.length, count);
+  assert.equal(harness.sources.length, 0);
+});
+
+test("source handshake restores the green icon and closing the panel preserves page detection", () => {
+  const harness = backgroundHarness();
+  const panel = port();
+  harness.onConnect.emit(panel);
+  panel.onMessage.emit({ type: "INIT", tabId: 12 });
+  harness.source(12).onMessage.emit({ type: "SOURCE_STATUS", detected: true });
+  assert.equal(harness.icons.at(-1).path[32], "icon_active_32.png");
+  const count = harness.icons.length;
+  panel.onDisconnect.emit();
+  assert.equal(harness.icons.length, count);
+});
+
+test("icon state belongs to the sender tab and subframes cannot change it", () => {
+  const harness = backgroundHarness();
+  harness.onMessage.emit(
+    { type: "NGRX_DETECTED" },
+    { tab: { id: 0 }, frameId: 0 },
+  );
+  harness.onMessage.emit(
+    { type: "NGRX_CONTENT_READY" },
+    { tab: { id: 12 }, frameId: 0 },
+  );
+  assert.equal(harness.icons[0].tabId, 0);
+  assert.equal(harness.icons[0].path[16], "icon_active_16.png");
+  assert.equal(harness.icons[1].tabId, 12);
+  assert.equal(harness.icons[1].path[16], "icon_16.png");
+  const count = harness.icons.length;
+  harness.onMessage.emit(
+    { type: "NGRX_DETECTED" },
+    { tab: { id: 12 }, frameId: 1 },
+  );
+  harness.onMessage.emit({ type: "NGRX_DETECTED" }, { tab: { id: -1 } });
+  assert.equal(harness.icons.length, count);
+});
+
+test("icon API failures do not break detection or create unhandled rejections", async () => {
+  for (const fail of [
+    () => {
+      throw new Error("Tab closed");
+    },
+    () => Promise.reject(new Error("Tab closed")),
+  ]) {
+    const harness = backgroundHarness(undefined, fail);
+    assert.doesNotThrow(() =>
+      harness.onMessage.emit({ type: "NGRX_DETECTED" }, { tab: { id: 12 } }),
+    );
+    await tick();
+  }
 });
 
 test("DevTools visibility is delivered to the panel window, including a hide before app startup", () => {

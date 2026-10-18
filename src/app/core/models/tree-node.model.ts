@@ -12,6 +12,9 @@ export interface TreeNode<T> {
    */
   children?: T[];
 
+  /** Number of children when their descriptors are created on expansion. */
+  childCount?: number;
+
   /** Container type, including containers with no children. */
   containerType?: 'array' | 'object';
 

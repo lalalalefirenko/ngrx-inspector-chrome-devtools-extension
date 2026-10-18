@@ -7,22 +7,24 @@ import { TreeNode } from '../models/tree-node.model';
  * @returns A string representing the preview of the node's value.
  */
 export const previewNodeValue = <T extends TreeNode<T>>(node: T): string => {
-  if (!node.children?.length) {
+  const childCount = node.childCount ?? node.children?.length ?? 0;
+  if (!childCount) {
     if (node.containerType === 'array') return '[]';
     if (node.containerType === 'object') return '{}';
     return '';
   }
 
-  const isArrayNode: boolean = node.containerType === 'array' || (
-    node.containerType === undefined && node.children.every(c => c.key.startsWith('['))
-  );
+  const isArrayNode: boolean =
+    node.containerType === 'array' ||
+    (node.containerType === undefined &&
+      node.children?.every((c) => c.key.startsWith('[')) === true);
 
   // ARRAY (keys like [0], [1])
   if (isArrayNode) {
-    const shown: number = Math.min(node.children.length, 5);
+    const shown: number = Math.min(childCount, 5);
     const items: unknown[] = Array(shown).fill('{…}');
 
-    return `[${items.join(', ')}${node.children.length > 5 ? ', ...' : ''}]`;
+    return `[${items.join(', ')}${childCount > 5 ? ', ...' : ''}]`;
   }
 
   // OBJECT

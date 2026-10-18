@@ -8,6 +8,25 @@
 
     <span class="key">{{ node().key }}</span>
 
+    @if (node().arrayItem; as item) {
+      @if (node().kind === "added") {
+        <span class="item-change item-change--added"
+          >Added at [{{ item.currentIndex }}]</span
+        >
+      } @else if (node().kind === "removed") {
+        <span class="item-change item-change--removed"
+          >Removed from [{{ item.previousIndex }}]</span
+        >
+      } @else if (!item.moved) {
+        <span class="item-change">Changed at [{{ item.currentIndex }}]</span>
+      }
+      @if (item.moved) {
+        <span class="item-change item-move"
+          >Moved [{{ item.previousIndex }}] → [{{ item.currentIndex }}]</span
+        >
+      }
+    }
+
     @if (collapsed()) {
       <span class="preview">
         {{ previewNodeValue() }}

@@ -7,7 +7,10 @@ export interface JsonTreeNode extends TreeNode<JsonTreeNode> {
   /**
    * Value of the node.
    */
-  value?: unknown;
+  value: unknown;
+
+  /** Immediate children only; their nodes have not been built yet. */
+  childCount: number;
 
   /**
    * Can the node be pinned?
