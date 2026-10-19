@@ -3,6 +3,11 @@
   let detected = false;
   let detectionNotified = false;
 
+  // Navigation checks need only this document's detection flag, never its snapshots.
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === "NGRX_DETECTION_QUERY") sendResponse({ detected });
+  });
+
   function closeSource(port) {
     if (sourcePort === port) sourcePort = null;
     try {

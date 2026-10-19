@@ -47,6 +47,7 @@ function port(name = "ngrx-inspector") {
 function contentHarness(sendMessage) {
   const messages = [];
   const onMessage = event();
+  const onRuntimeMessage = event();
   const onConnect = event();
   const page = {
     addEventListener: (_type, listener) => onMessage.addListener(listener),
@@ -56,6 +57,7 @@ function contentHarness(sendMessage) {
     chrome: {
       runtime: {
         onConnect,
+        onMessage: onRuntimeMessage,
         sendMessage: (message) => {
           messages.push(message);
           return sendMessage ? sendMessage(message) : Promise.resolve();
@@ -65,6 +67,13 @@ function contentHarness(sendMessage) {
   });
   return {
     messages,
+    query(message = { type: "NGRX_DETECTION_QUERY" }) {
+      let response;
+      onRuntimeMessage.emit(message, {}, (value) => {
+        response = value;
+      });
+      return response;
+    },
     connect(source = port("ngrx-inspector-source")) {
       onConnect.emit(source);
       return source;
@@ -74,11 +83,13 @@ function contentHarness(sendMessage) {
   };
 }
 
-function backgroundHarness(connectSource, setIcon) {
+function backgroundHarness(connectSource, setIcon, sendMessage) {
   const onConnect = event();
   const onMessage = event();
   const onUpdated = event();
+  const onRemoved = event();
   const sources = [];
+  const checks = [];
   const icons = [];
   const titles = [];
   vm.runInNewContext(script("background.js"), {
@@ -86,6 +97,13 @@ function backgroundHarness(connectSource, setIcon) {
       runtime: { onConnect, onMessage },
       tabs: {
         onUpdated,
+        onRemoved,
+        sendMessage: (tabId, message, options) => {
+          checks.push({ tabId, message, options });
+          return sendMessage
+            ? sendMessage(tabId, message, options)
+            : Promise.resolve({ detected: false });
+        },
         connect: (tabId, options) => {
           const source = connectSource
             ? connectSource(tabId, options)
@@ -110,7 +128,9 @@ function backgroundHarness(connectSource, setIcon) {
     onConnect,
     onMessage,
     onUpdated,
+    onRemoved,
     sources,
+    checks,
     icons,
     titles,
     source: (tabId) => sources.findLast((item) => item.tabId === tabId)?.source,
@@ -145,6 +165,23 @@ test("content script detects NgRx without forwarding snapshots while closed", ()
   );
   assert.ok(
     harness.messages.every((message) => !Object.hasOwn(message, "action")),
+  );
+});
+
+test("content detection queries return only the current boolean without starting capture", () => {
+  const harness = contentHarness();
+  assert.equal(harness.query()?.detected, false);
+  harness.emit(action);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = harness.query();
+    assert.equal(response?.detected, true);
+    assert.deepEqual(Object.keys(response), ["detected"]);
+  }
+  for (const message of [null, {}, { type: "OTHER" }])
+    assert.equal(harness.query(message), undefined);
+  assert.deepEqual(
+    harness.messages.map((message) => message.type),
+    ["NGRX_CONTENT_READY", "NGRX_DETECTED"],
   );
 });
 
@@ -488,17 +525,149 @@ test("a new document resets every icon size to gray even without an inspector pa
   assert.equal(harness.sources.length, 0);
 });
 
-test("navigation resets the tab icon before a new content script is available", () => {
+test("navigation completion checks only the main frame and clears an undetected page", async () => {
   const harness = backgroundHarness();
   harness.onMessage.emit({ type: "NGRX_DETECTED" }, { tab: { id: 12 } });
   harness.onUpdated.emit(12, { status: "loading" });
+  assert.equal(harness.icons.at(-1).path[16], "icon_active_16.png");
+  assert.equal(harness.checks.length, 0);
+  harness.onUpdated.emit(12, { status: "complete" });
+  await tick();
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.checks)), [
+    {
+      tabId: 12,
+      message: { type: "NGRX_DETECTION_QUERY" },
+      options: { frameId: 0 },
+    },
+  ]);
   assert.equal(harness.icons.at(-1).path[16], "icon_16.png");
   assert.equal(harness.icons.at(-1).tabId, 12);
   const count = harness.icons.length;
-  harness.onUpdated.emit(12, { status: "complete" });
   harness.onUpdated.emit(12, { title: "Same document" });
+  await tick();
   assert.equal(harness.icons.length, count);
+  assert.equal(harness.checks.length, 1);
   assert.equal(harness.sources.length, 0);
+});
+
+test("same-document loading and completion preserve detection without an inspector panel", async () => {
+  const harness = backgroundHarness(undefined, undefined, () =>
+    Promise.resolve({ detected: true }),
+  );
+  harness.onMessage.emit({ type: "NGRX_DETECTED" }, { tab: { id: 12 } });
+  for (let route = 0; route < 3; route++) {
+    harness.onUpdated.emit(12, { status: "loading" });
+    harness.onUpdated.emit(12, { status: "complete" });
+    await tick();
+    assert.ok(
+      harness.icons.every((icon) => icon.path[16] === "icon_active_16.png"),
+    );
+    assert.match(harness.titles.at(-1).title, /NgRx detected/);
+  }
+  assert.equal(harness.checks.length, 3);
+  assert.equal(harness.sources.length, 0);
+});
+
+test("unreachable pages and malformed detection responses reset the icon safely", async () => {
+  for (const sendMessage of [
+    () => Promise.reject(new Error("No content script")),
+    () => {
+      throw new Error("Tab closed");
+    },
+    ...[null, {}, { detected: "true" }].map(
+      (response) => () => Promise.resolve(response),
+    ),
+  ]) {
+    const harness = backgroundHarness(undefined, undefined, sendMessage);
+    harness.onMessage.emit({ type: "NGRX_DETECTED" }, { tab: { id: 12 } });
+    assert.doesNotThrow(() =>
+      harness.onUpdated.emit(12, { status: "complete" }),
+    );
+    await tick();
+    assert.equal(harness.icons.at(-1).path[16], "icon_16.png");
+    assert.match(harness.titles.at(-1).title, /not detected/);
+    assert.equal(harness.sources.length, 0);
+  }
+});
+
+test("delayed detection checks cannot override newer document or source events", async () => {
+  for (const newerEvent of ["ready", "detected", "source", "loading", "removed"]) {
+    const pending = Promise.withResolvers();
+    const harness = backgroundHarness(
+      undefined,
+      undefined,
+      () => pending.promise,
+    );
+    const sender = { tab: { id: 12 }, frameId: 0 };
+    harness.onMessage.emit({ type: "NGRX_DETECTED" }, sender);
+    harness.onUpdated.emit(12, { status: "complete" });
+    if (newerEvent === "ready") {
+      harness.onMessage.emit({ type: "NGRX_CONTENT_READY" }, sender);
+    } else if (newerEvent === "detected") {
+      harness.onMessage.emit({ type: "NGRX_DETECTED" }, sender);
+    } else if (newerEvent === "source") {
+      const panel = port();
+      harness.onConnect.emit(panel);
+      panel.onMessage.emit({ type: "INIT", tabId: 12 });
+      harness.source(12).onMessage.emit({ type: "SOURCE_STATUS", detected: true });
+    } else if (newerEvent === "loading") {
+      harness.onUpdated.emit(12, { status: "loading" });
+    } else {
+      harness.onRemoved.emit(12);
+    }
+    const count = harness.icons.length;
+    pending.resolve({ detected: newerEvent === "ready" });
+    await tick();
+    assert.equal(harness.icons.length, count, newerEvent);
+    assert.equal(
+      harness.icons.at(-1).path[16],
+      newerEvent === "ready" ? "icon_16.png" : "icon_active_16.png",
+      newerEvent,
+    );
+  }
+});
+
+test("a delayed query failure cannot clear newly announced detection", async () => {
+  const pending = Promise.withResolvers();
+  const harness = backgroundHarness(undefined, undefined, () => pending.promise);
+  harness.onUpdated.emit(12, { status: "complete" });
+  harness.onMessage.emit({ type: "NGRX_DETECTED" }, { tab: { id: 12 } });
+  const count = harness.icons.length;
+  pending.reject(new Error("Previous document was destroyed"));
+  await tick();
+  assert.equal(harness.icons.length, count);
+  assert.equal(harness.icons.at(-1).path[16], "icon_active_16.png");
+});
+
+test("overlapping detection checks discard older responses and remain isolated by tab", async () => {
+  const first = Promise.withResolvers();
+  const second = Promise.withResolvers();
+  const otherTab = Promise.withResolvers();
+  let checks = 0;
+  const harness = backgroundHarness(undefined, undefined, (tabId) => {
+    if (tabId === 13) return otherTab.promise;
+    return checks++ === 0 ? first.promise : second.promise;
+  });
+  for (const tabId of [12, 13]) {
+    harness.onMessage.emit({ type: "NGRX_DETECTED" }, { tab: { id: tabId } });
+    harness.onUpdated.emit(tabId, { status: "complete" });
+  }
+  harness.onUpdated.emit(12, { status: "complete" });
+  second.resolve({ detected: false });
+  otherTab.resolve({ detected: true });
+  await tick();
+  const count = harness.icons.length;
+  first.resolve({ detected: true });
+  await tick();
+  assert.equal(harness.icons.length, count);
+  assert.equal(
+    harness.icons.findLast((icon) => icon.tabId === 12).path[16],
+    "icon_16.png",
+  );
+  assert.equal(
+    harness.icons.findLast((icon) => icon.tabId === 13).path[16],
+    "icon_active_16.png",
+  );
 });
 
 test("source handshake restores the green icon and closing the panel preserves page detection", () => {

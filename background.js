@@ -1,6 +1,9 @@
 const panelsByTabId = new Map();
+const detectionChecksByTabId = new Map();
 
 function setDetectionIcon(tabId, detected) {
+  // A content/source update supersedes any check of the previous document state.
+  detectionChecksByTabId.delete(tabId);
   const path = Object.fromEntries(
     [16, 32, 48, 128].map((size) => [
       size,
@@ -17,6 +20,22 @@ function setDetectionIcon(tabId, detected) {
       .catch(() => {});
   } catch {
     // A tab can close while its content script is announcing detection.
+  }
+}
+
+function checkDetectionIcon(tabId) {
+  const check = {};
+  detectionChecksByTabId.set(tabId, check);
+  const apply = (response) => {
+    if (detectionChecksByTabId.get(tabId) !== check) return;
+    setDetectionIcon(tabId, response?.detected === true);
+  };
+  try {
+    chrome.tabs
+      .sendMessage(tabId, { type: "NGRX_DETECTION_QUERY" }, { frameId: 0 })
+      .then(apply, () => apply(null));
+  } catch {
+    apply(null);
   }
 }
 
@@ -155,6 +174,11 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  // Includes navigation to restricted pages where no content script can run.
-  if (changeInfo.status === "loading") setDetectionIcon(tabId, false);
+  // Chrome also reports loading for History API and hash changes in the same document.
+  if (changeInfo.status === "loading") detectionChecksByTabId.delete(tabId);
+  else if (changeInfo.status === "complete") checkDetectionIcon(tabId);
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  detectionChecksByTabId.delete(tabId);
 });

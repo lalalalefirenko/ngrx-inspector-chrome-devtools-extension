@@ -39,8 +39,10 @@ The first action after a capture interruption has no diff baseline.
 The toolbar icon has a gray background until NgRx is detected on that tab, then
 switches to a lime green background. The magnifying glass and the letter A remain
 dark charcoal in both states.
-Detection stays green while the inspector panel is hidden; navigating to another
-page resets the icon until NgRx is detected there. The tooltip also names the state.
+Detection stays green while the inspector panel is hidden and when the application
+changes routes or URL fragments within the same document. Loading a new document
+resets the icon until NgRx is detected there; pages without a content script also
+reset it. The tooltip also names the state.
 
 This stops forwarding snapshots from the content script to the worker. The
 application bridge still sends its existing page messages; no application changes

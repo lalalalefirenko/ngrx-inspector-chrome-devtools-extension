@@ -71,7 +71,7 @@ test(
       await evaluate(
         worker,
         `(() => {
-    globalThis.captureProbe = { snapshots: 0, opened: 0, closed: 0, tabId: null, icons: [] };
+    globalThis.captureProbe = { snapshots: 0, opened: 0, closed: 0, tabId: null, icons: [], completed: 0 };
     const setIcon = chrome.action.setIcon.bind(chrome.action);
     chrome.action.setIcon = options => {
       const applied = { tabId: options.tabId, path: { ...options.path } };
@@ -79,6 +79,9 @@ test(
     };
     chrome.runtime.onMessage.addListener((message, sender) => {
       if (message.type === 'NGRX_CONTENT_READY') captureProbe.tabId = sender.tab.id;
+    });
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+      if (tabId === captureProbe.tabId && changeInfo.status === 'complete') captureProbe.completed++;
     });
     const connect = chrome.tabs.connect.bind(chrome.tabs);
     chrome.tabs.connect = (...args) => {
@@ -100,15 +103,43 @@ test(
       await rpc("Page.navigate", { url: server.url }, fixture);
       await waitFor(worker, "Number.isInteger(captureProbe.tabId)");
       const tabId = await evaluate(worker, "captureProbe.tabId");
+      const tabIcons = `captureProbe.icons.filter(icon => icon.tabId === ${tabId})`;
       const waitForIcon = (filename) =>
         waitFor(
           worker,
-          `captureProbe.icons.findLast(icon => icon.tabId === ${tabId})?.path[16] === ${JSON.stringify(filename)}`,
+          `${tabIcons}.at(-1)?.path[16] === ${JSON.stringify(filename)}`,
         );
       await waitForIcon("icon_16.png");
       await evaluate(fixture, "emitActions(3000)");
       await waitFor(fixture, "received === sent");
       await waitForIcon("icon_active_16.png");
+      assert.equal(await evaluate(worker, "captureProbe.snapshots"), 0);
+      for (const route of [
+        "history.pushState({}, '', '/next-route')",
+        "history.replaceState({}, '', '/replaced-route')",
+        "location.hash = 'next-section'",
+      ]) {
+        const completed = await evaluate(worker, "captureProbe.completed");
+        const iconsBefore = await evaluate(worker, `${tabIcons}.length`);
+        await evaluate(fixture, route);
+        await waitFor(worker, `captureProbe.completed > ${completed}`);
+        // The detection reply and Chrome's icon update both finish after navigation.
+        await waitFor(worker, `${tabIcons}.length > ${iconsBefore}`);
+        assert.match(
+          await evaluate(worker, `chrome.action.getTitle({ tabId: ${tabId} })`),
+          /NgRx detected/,
+          route,
+        );
+        assert.equal(
+          await evaluate(
+            worker,
+            `${tabIcons}.slice(${iconsBefore}).every(icon => icon.path[16] === 'icon_active_16.png')`,
+          ),
+          true,
+          route,
+        );
+      }
+      assert.equal(await evaluate(worker, "captureProbe.opened"), 0);
       assert.equal(await evaluate(worker, "captureProbe.snapshots"), 0);
       const openPanel = async () => {
         const targetId = (
